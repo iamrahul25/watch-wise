@@ -3,39 +3,38 @@ package com.nightwise.watchwise
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.MaterialTheme
-import androidx.wear.compose.material3.ScreenScaffold
-import androidx.wear.compose.material3.Text
+import androidx.wear.compose.navigation.SwipeDismissableNavHost
+import androidx.wear.compose.navigation.composable
+import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import com.nightwise.watchwise.faces.HealthData
+import com.nightwise.watchwise.faces.WatchFace
+import com.nightwise.watchwise.ui.AmoledColors
+import com.nightwise.watchwise.ui.FaceDetailScreen
+import com.nightwise.watchwise.ui.FaceListScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { HelloWorldApp() }
+        HealthData.start(this)
+        setContent { WatchWiseApp() }
     }
 }
 
 @Composable
-fun HelloWorldApp() {
-    MaterialTheme {
+fun WatchWiseApp() {
+    MaterialTheme(colorScheme = AmoledColors) {
         AppScaffold {
-            ScreenScaffold {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Hello World",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.Center,
-                    )
+            val nav = rememberSwipeDismissableNavController()
+            SwipeDismissableNavHost(navController = nav, startDestination = "faces") {
+                composable("faces") {
+                    FaceListScreen(onOpen = { face -> nav.navigate("face/${face.id}") })
+                }
+                composable("face/{id}") { entry ->
+                    val face = WatchFace.byId(entry.arguments?.getString("id")) ?: WatchFace.MONO_STACK
+                    FaceDetailScreen(face)
                 }
             }
         }

@@ -2,12 +2,22 @@
 agp = "9.4.0"
 kotlin = "2.2.10"
 activityCompose = "1.13.0"
+coreKtx = "1.19.1"
 wearCompose = "1.7.2"
+watchfacePush = "1.0.0"
+watchfaceValidator = "1.1.0-alpha01"
+lifecycle = "2.10.0"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 wear-compose-material3 = { group = "androidx.wear.compose", name = "compose-material3", version.ref = "wearCompose" }
 wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }
+wear-compose-navigation = { group = "androidx.wear.compose", name = "compose-navigation", version.ref = "wearCompose" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+wear-watchfacepush = { group = "androidx.wear.watchfacepush", name = "watchfacepush", version.ref = "watchfacePush" }
+# Build-time only: Google's Watch Face Push validator (creates the validation tokens).
+watchface-validator-cli = { group = "com.google.android.wearable.watchface.validator", name = "validator-push-cli", version.ref = "watchfaceValidator" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

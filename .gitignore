@@ -55,3 +55,6 @@ env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Dev-only signing key for the pushed watch faces (needed to build them)
+!watchfaces/watchface-signing.jks

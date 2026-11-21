@@ -1,13 +1,15 @@
-"""Watch Wise build-and-run helper (Wear OS hello world).
+"""Watch Wise build-and-run helper (Wear OS watch face picker app).
 
 Menu:
-  1. Build the APK and run it on a Wear OS emulator (watch AVD).
-  2. Build the APK and run it on a connected watch (adb: USB or Wi-Fi).
+  1. Build the app and run it on a Wear OS emulator (watch AVD).
+  2. Build the app and run it on a connected watch (adb: USB or Wi-Fi).
   3. Pair / connect a real watch over Wi-Fi (wireless debugging).
   4. Set up a Wear OS emulator (downloads the SDK tools and a Wear OS image, creates a watch AVD).
   5. Build the debug APK only.
-  6. Show connected devices.
-  7. Uninstall the app from a watch.
+  6. Install a watch face directly over adb (for Wear OS 4/5, where the app can't push faces).
+  7. Regenerate the watch face sources (tools/gen_watchfaces.py).
+  8. Show connected devices.
+  9. Uninstall the app and its watch faces from a watch.
   0. Exit.
 """
 
@@ -35,6 +37,13 @@ SDK_REPO_URL = "https://dl.google.com/android/repository/"
 SDK_REPO_XML = SDK_REPO_URL + "repository2-3.xml"
 WEAR_AVD_NAME = "Wear_OS_Large_Round"
 WEAR_DEVICE_PROFILE = "wearos_large_round"
+
+# Watch Face Format faces (watchfaces/<face>), one APK per accent flavour.
+FACE_PREFIX = PACKAGE + ".watchfacepush."
+WATCH_FACES = {
+    "monostack": ("Mono Stack", ["red", "orange", "cyan", "white"]),
+    "dotmatrix": ("Dot Matrix", ["lime", "white", "cyan", "orange"]),
+}
 
 
 # ---------------------------------------------------------------- SDK helpers
@@ -149,14 +158,14 @@ def install_and_launch(serial):
     base = [tool("adb"), "-s", serial]
     print(f"[install] Installing APK on {serial} ...")
     run(base + ["install", "-r", DEBUG_APK])
-    print("[launch] Starting app ...")
+    print("[launch] Starting Watch Wise ...")
     # Right after a (first) boot, Wear OS system UI can grab the screen just after
     # our activity starts, so check the app is really in front and retry if not.
     for _ in range(6):
         run(base + ["shell", "am", "start", "-n", LAUNCH_COMPONENT], capture=True)
         time.sleep(3)
         if app_in_front(serial):
-            print("[done] 'Hello World' is on the watch screen.")
+            print("[done] Watch Wise is open on the watch - pick a face and tap 'Set face'.")
             return
         print("[launch] Watch system UI is in front, launching again ...")
     print("[launch] App installed, but could not bring it to the front. Open 'Watch Wise' from the watch's app list.")
@@ -362,6 +371,10 @@ On the watch:
 
 # ---------------------------------------------------------------- uninstall
 
+def face_packages():
+    return [f"{FACE_PREFIX}{face}_{accent}" for face, (_, accents) in WATCH_FACES.items() for accent in accents]
+
+
 def uninstall_app():
     watches = [d for d in connected_devices() if is_watch(d)]
     if not watches:
@@ -370,8 +383,65 @@ def uninstall_app():
     serial = ask_choice(watches, "watch")
     if not serial:
         return
-    res = run([tool("adb"), "-s", serial, "uninstall", PACKAGE], check=False, capture=True)
-    print((res.stdout + res.stderr).strip() or "Done.")
+    adb = [tool("adb"), "-s", serial]
+    res = run(adb + ["uninstall", PACKAGE], check=False, capture=True)
+    print(f"{PACKAGE}: " + ((res.stdout + res.stderr).strip() or "done"))
+    installed = run(adb + ["shell", "pm", "list", "packages", FACE_PREFIX], check=False, capture=True).stdout
+    for pkg in face_packages():
+        if f"package:{pkg}" in installed:
+            res = run(adb + ["uninstall", pkg], check=False, capture=True)
+            print(f"{pkg}: " + ((res.stdout + res.stderr).strip() or "done"))
+
+
+# ---------------------------------------------------------------- watch faces (direct install)
+
+def install_face_direct():
+    """Build one WFF face APK and adb-install it (no Watch Face Push needed)."""
+    watches = [d for d in connected_devices() if is_watch(d)]
+    if not watches:
+        print("\nNo watch (real or emulator) connected.")
+        return
+    serial = ask_choice(watches, "watch")
+    if not serial:
+        return
+    faces = list(WATCH_FACES)
+    face = ask_choice([f"{f} ({WATCH_FACES[f][0]})" for f in faces], "watch face")
+    if not face:
+        return
+    face = face.split(" ")[0]
+    accent = ask_choice(WATCH_FACES[face][1], "accent")
+    if not accent:
+        return
+    task = f":watchfaces:{face}:assemble{accent.capitalize()}Release"
+    print(f"\n[build] {task} ...")
+    try:
+        run(tool_cmd(GRADLEW, task))
+    except subprocess.CalledProcessError:
+        print("[build] FAILED.")
+        return
+    apk = os.path.join(PROJECT_DIR, "watchfaces", face, "build", "outputs", "apk", accent, "release",
+                       f"{face}-{accent}-release.apk")
+    adb = [tool("adb"), "-s", serial]
+    print(f"[install] {os.path.basename(apk)} ...")
+    run(adb + ["install", "-r", apk])
+    pkg = f"{FACE_PREFIX}{face}_{accent}"
+    # Developer shortcut to switch the watch face (works on emulators / debuggable builds).
+    run(adb + ["shell", "am", "broadcast", "-a", "com.google.android.wearable.app.DEBUG_SURFACE",
+               "--es", "operation", "set-watchface", "--es", "watchFaceId", pkg], check=False, capture=True)
+    print(f"[done] Installed {WATCH_FACES[face][0]} ({accent}). If it isn't showing, long-press the")
+    print("       watch face and pick it from the list.")
+
+
+def regenerate_faces():
+    """Run tools/gen_watchfaces.py (needs fonttools + pillow)."""
+    script = os.path.join(PROJECT_DIR, "tools", "gen_watchfaces.py")
+    check = run([sys.executable, "-c", "import fontTools, PIL"], check=False, capture=True)
+    if check.returncode != 0:
+        print("\nThe generator needs fonttools and pillow:")
+        print(f"  {sys.executable} -m pip install fonttools pillow")
+        return
+    run([sys.executable, script])
+    print("[done] Rebuild the app (option 1/2/5) to bundle the updated faces.")
 
 
 # ---------------------------------------------------------------- Wear emulator setup
@@ -527,8 +597,10 @@ def menu():
     print(" 3. Connect a watch over Wi-Fi (pair + connect)")
     print(" 4. Set up Wear OS emulator")
     print(" 5. Build debug APK only")
-    print(" 6. Show connected devices")
-    print(" 7. Uninstall app from a watch")
+    print(" 6. Install a watch face directly (adb, Wear OS 4/5)")
+    print(" 7. Regenerate watch face sources")
+    print(" 8. Show connected devices")
+    print(" 9. Uninstall app + watch faces from a watch")
     print(" 0. Exit")
     return input("Select an option: ").strip()
 
@@ -539,8 +611,10 @@ ACTIONS = {
     "3": connect_watch_wifi,
     "4": setup_wear_emulator,
     "5": build_debug_apk,
-    "6": show_devices,
-    "7": uninstall_app,
+    "6": install_face_direct,
+    "7": regenerate_faces,
+    "8": show_devices,
+    "9": uninstall_app,
 }
 
 
