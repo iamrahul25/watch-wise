@@ -1,0 +1,57 @@
+# ---- Gradle / Android build output ----
+.gradle/
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ---- Local machine config (never commit) ----
+local.properties
+
+# ---- Signing keys & secrets (never commit) ----
+keystore.properties
+signing.properties
+*.jks
+*.keystore
+
+# ---- Packaged artifacts ----
+*.apk
+*.aab
+*.ap_
+*.dex
+release/
+
+# ---- Android Studio / IntelliJ (keep shared settings, ignore personal state) ----
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetSelector.xml
+.idea/deploymentTargetDropDown.xml
+.idea/inspectionProfiles/Project_Default.xml
+
+# ---- Logs & OS files ----
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# ---- Python (app.py) ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.python-version
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
