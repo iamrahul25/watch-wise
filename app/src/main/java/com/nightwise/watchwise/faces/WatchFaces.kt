@@ -63,12 +63,38 @@ enum class WatchFace(
         ),
         usesSensors = true,
         animated = true,
+    ),
+    SHELL_WINDOW(
+        id = "shell_window",
+        pushName = "shellwindow",
+        title = "Shell Window",
+        tagline = "Terminal",
+        // Prompt colour.
+        accents = listOf(
+            accent("blue", 0x4EA1FF), accent("green", 0x5FD77A),
+            accent("amber", 0xFEBC2E), accent("purple", 0xC792EA),
+        ),
+        usesSensors = true,
+    ),
+    SHELL_FULL(
+        id = "shell_full",
+        pushName = "shellfull",
+        title = "Shell Full",
+        tagline = "Big terminal",
+        // Prompt colour.
+        accents = listOf(
+            accent("blue", 0x4EA1FF), accent("green", 0x5FD77A),
+            accent("amber", 0xFEBC2E), accent("purple", 0xC792EA),
+        ),
+        usesSensors = true,
     );
 
     fun createPainter(assets: AssetManager): FacePainter = when (this) {
         MONO_STACK -> MonoStackPainter(assets)
         DOT_MATRIX -> DotMatrixPainter(assets)
         EMBER_FOREST -> EmberForestPainter()
+        SHELL_WINDOW -> ShellWindowPainter(assets)
+        SHELL_FULL -> ShellFullPainter(assets)
     }
 
     /** Package name of the pushed watch face for an accent (must start with "<app>.watchfacepush."). */

@@ -96,7 +96,9 @@ abstract class BundleWatchFacesTask : DefaultTask() {
                 isIgnoreExitValue = true
             }
             val log = stdout.toString()
-            val token = Regex("""(?im)token\W*[:=]?\s*([A-Za-z0-9+/=:_.\-]{20,})""").find(log)?.groupValues?.get(1)
+            // "...generated token: <base64>:<base64>". Base64 can start with '+' or '/', so match
+            // the separator exactly rather than skipping non-word characters.
+            val token = Regex("""(?i)token\s*[:=]\s*([A-Za-z0-9+/=:_.\-]{20,})""").find(log)?.groupValues?.get(1)
             if (result.exitValue != 0 || token == null) {
                 throw GradleException("Watch face validation failed for ${apk.name}:\n$log")
             }
@@ -112,6 +114,8 @@ val watchFaceModules = mapOf(
     "monostack" to listOf("red", "orange", "cyan", "white"),
     "dotmatrix" to listOf("lime", "white", "cyan", "orange"),
     "emberforest" to listOf("orange", "cyan", "violet", "green"),
+    "shellwindow" to listOf("blue", "green", "amber", "purple"),
+    "shellfull" to listOf("blue", "green", "amber", "purple"),
 )
 
 val bundleWatchFaces = tasks.register<BundleWatchFacesTask>("bundleWatchFaces") {

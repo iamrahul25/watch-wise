@@ -57,16 +57,19 @@ def ifmt(v):
 class Font:
     """A static font instance written to res/font, plus its metrics for layout."""
 
-    def __init__(self, src, out_dir, name, axes):
+    def __init__(self, src, out_dir, name, axes, extra_chars=""):
+        """axes: variable-font axis values, or None for a static font."""
         self.name = name
+        self.src = os.path.join(FONT_SRC, src)
         path = os.path.join(out_dir, name + ".ttf")
-        tt = TTFont(os.path.join(FONT_SRC, src))
-        tt = instancer.instantiateVariableFont(tt, axes)
+        tt = TTFont(self.src)
+        if axes is not None:
+            tt = instancer.instantiateVariableFont(tt, axes)
         opts = subset.Options()
         opts.layout_features = ["*"]
         opts.name_IDs = ["*"]
         sub = subset.Subsetter(opts)
-        sub.populate(text=CHARSET)
+        sub.populate(text=CHARSET + extra_chars)
         sub.subset(tt)
         os.makedirs(out_dir, exist_ok=True)
         tt.save(path)
@@ -889,9 +892,460 @@ def ember_forest():
     print(f"[gen] {face}: fire box {box}, {len(frames)} frames")
 
 
+# ---------------------------------------------------------------- Shell Window
+#
+# "05 · Shell Window" from the "AMOLED Watch Faces — 4 Designs" canvas: a macOS-style
+# terminal window running `date`, `status` and `next`. The design is drawn on a 480 x 480
+# artboard, so everything is scaled by SW_K. JetBrains Mono is monospaced (600 units per
+# glyph), so coloured spans on one line are separate PartTexts placed by column.
+# Differences from the design (no WFF data for them): no "BT on" or SpO2, distance is
+# estimated from steps (0.762 m stride), and the next event comes from a complication slot
+# (system "next event" provider by default) with the unread-notification count after it.
+
+SW_K = SIZE / 480
+SW_WIN_X, SW_WIN_Y, SW_WIN_W = 68, 92, 344  # window frame (design px)
+SW_TITLE_H, SW_PAD_X, SW_PAD_T, SW_PAD_B = 30, 14, 10, 12
+SW_LINE, SW_BODY = 19, 13  # line height / body font size
+SW_TIME, SW_SECS = 46, 20
+SW_COL = 0.6 * SW_BODY  # one monospace column at body size (design px)
+SW_LEFT = SW_WIN_X + 1 + SW_PAD_X  # content left
+SW_RIGHT = SW_WIN_X + SW_WIN_W - 1 - SW_PAD_X  # content right
+SW_TOP = SW_WIN_Y + 1 + SW_TITLE_H + SW_PAD_T  # first line top
+SW_TIME_ROW = SW_TOP + SW_LINE + 4  # time row top (margin 4px, height 46, margin 2px)
+SW_ROWS = {name: SW_TIME_ROW + SW_TIME + 2 + i * SW_LINE for i, name in enumerate(
+    ["date", "p_status", "battery", "hr", "steps", "energy", "weather", "p_next", "next", "p_npm"])}
+SW_WIN_H = SW_ROWS["p_npm"] + SW_LINE + SW_PAD_B + 1 - SW_WIN_Y
+
+SW_TEXT, SW_DIM, SW_DATE = "e6e6e6", "9a9a9a", "b5b5b5"
+SW_GREEN, SW_RED, SW_AMBER = "5fd77a", "ff6b81", "febc2e"
+SW_ACCENTS = [("blue", "4EA1FF"), ("green", "5FD77A"), ("amber", "FEBC2E"), ("purple", "C792EA")]
+
+
+def sw_grouped(expr):
+    """(condition, format, params) options printing an integer with a thousands comma."""
+    hi, lo = f"floor(({expr}) / 1000)", f"(({expr}) % 1000)"
+    return [(f"{expr} < 1000", "%d", [expr]),
+            (f"{lo} < 10", "%d,00%d", [hi, lo]),
+            (f"{lo} < 100", "%d,0%d", [hi, lo]),
+            (None, "%d,%d", [hi, lo])]
+
+
+def sw_choose(name, options, render):
+    """Nested Conditions picking the first option whose condition holds."""
+    cond, f, params = options[0]
+    if cond is None:
+        return render(f, params)
+    return condition(f"{name}{next(_time_ids)}", cond, render(f, params), sw_choose(name, options[1:], render))
+
+
+def round_rect(x, y, w, h, r, fill=None, stroke=None):
+    """Rounded rectangle (design px), filled and/or with a 1px stroke inside its edge."""
+    k = SW_K
+    px, py = math.floor(x * k), math.floor(y * k)
+    inner = ""
+    if fill:
+        inner += f'<RoundRectangle x="{fmt(x * k - px)}" y="{fmt(y * k - py)}" width="{fmt(w * k)}" height="{fmt(h * k)}" ' \
+                 f'cornerRadiusX="{fmt(r * k)}" cornerRadiusY="{fmt(r * k)}"><Fill color="{fill}"/></RoundRectangle>'
+    if stroke:
+        t = 1.0
+        inner += f'<RoundRectangle x="{fmt(x * k - px + t / 2)}" y="{fmt(y * k - py + t / 2)}" ' \
+                 f'width="{fmt(w * k - t)}" height="{fmt(h * k - t)}" cornerRadiusX="{fmt(r * k - t / 2)}" ' \
+                 f'cornerRadiusY="{fmt(r * k - t / 2)}"><Stroke color="{stroke}" thickness="{fmt(t)}"/></RoundRectangle>'
+    return f"""<PartDraw x="{px}" y="{py}" width="{math.ceil(w * k) + 2}" height="{math.ceil(h * k) + 2}">
+  {inner}
+</PartDraw>"""
+
+
+def shell_window():
+    face = "shellwindow"
+    base = os.path.join(ROOT, "watchfaces", face, "src")
+    res = os.path.join(base, "main", "res")
+    fdir = os.path.join(res, "font")
+    reg = Font("jetbrainsmono_regular.ttf", fdir, "jetbrainsmono_regular", None, extra_chars="✓→—")
+    xb = Font("jetbrainsmono_extrabold.ttf", fdir, "jetbrainsmono_extrabold", None)
+    k = SW_K
+    preview = []  # (kind, ...) draw ops in design px, for the preview image
+
+    def baseline_top(font, size, baseline):
+        """Top of a centred, content-high PartText box whose baseline lands at `baseline`."""
+        return baseline - font.asc / font.upm * size
+
+    def line_baseline(font, row_top, size=SW_BODY):
+        content = (font.asc + font.desc + font.gap) / font.upm * size
+        return row_top + (SW_LINE - content) / 2 + font.asc / font.upm * size
+
+    def text_at(x, row_top, w, body, color, sample, font=reg, size=SW_BODY, align="START", tint=None):
+        b = line_baseline(font, row_top, size)
+        top = baseline_top(font, size, b)
+        h = font.line_h(size)
+        preview.append(("text", x, b, w, font, size, "ACCENT" if tint else color, sample, align, 0))
+        return part_text(x * k, top * k, w * k, h * k, font, size * k, argb(color), body, align=align,
+                         tint=tint)
+
+    def col(row, c, body, color, sample, width_cols=None, align="START", tint=None):
+        x = SW_LEFT + c * SW_COL
+        w = width_cols * SW_COL if width_cols else SW_RIGHT - x
+        return text_at(x, SW_ROWS.get(row, row), w, body, color, sample, align=align, tint=tint)
+
+    def prompt(row, cmd):
+        return [col(row, 0, "watch:~$", "ffffff", "watch:~$", tint=ACCENT),
+                col(row, 9, cmd, SW_GREEN, cmd)]
+
+    # Window: title bar colour behind everything, body below it (square top corners), border.
+    wx, wy, ww, wh = SW_WIN_X, SW_WIN_Y, SW_WIN_W, SW_WIN_H
+    body_y = wy + 1 + SW_TITLE_H
+    chrome = [
+        round_rect(wx, wy, ww, wh, 12, fill=argb("232323")),
+        round_rect(wx + 1, body_y, ww - 2, wy + wh - 1 - body_y, 11, fill=argb("161616")),
+        round_rect(wx + 1, body_y, ww - 2, 12, 0, fill=argb("161616")),
+    ]
+    preview += [("rrect", wx, wy, ww, wh, 12, "232323"), ("rrect", wx + 1, body_y, ww - 2, wy + wh - 1 - body_y, 11, "161616"),
+                ("rrect", wx + 1, body_y, ww - 2, 12, 0, "161616")]
+    border = round_rect(wx, wy, ww, wh, 12, stroke=argb("2c2c2c"))
+    preview.append(("stroke", wx, wy, ww, wh, 12, "2c2c2c"))
+    lights = []
+    for i, c in enumerate(["ff5f57", "febc2e", "28c840"]):
+        cx, cy = wx + 1 + 12 + 5.5 + i * 18, wy + 1 + SW_TITLE_H / 2
+        lights.append(dot(cx * k, cy * k, 11 * k, argb(c)))
+        preview.append(("dot", cx, cy, 11, c))
+    title_row = wy + 1 + (SW_TITLE_H - SW_LINE) / 2
+    title_b = line_baseline(reg, title_row, 11)
+    title = part_text((wx + 1) * k, baseline_top(reg, 11, title_b) * k, (ww - 2) * k, reg.line_h(11) * k, reg, 11 * k,
+                      argb("a8a8a8"), "watch — bash")
+    preview.append(("text", wx + 1, title_b, ww - 2, reg, 11, "a8a8a8", "watch — bash", "CENTER", 0))
+
+    # Time row: HH:MM (ExtraBold 46) then :SS (20, grey) on the same baseline. The design's
+    # -2px tracking is left out: WFF doesn't apply negative letterSpacing to PartText, so
+    # :SS would overlap the minutes.
+    ls = 0
+    hm_w = xb.width("00:00", SW_TIME, ls)
+    time_b = SW_TIME_ROW + SW_TIME * (1 - (xb.asc + xb.desc) / xb.upm) / 2 + xb.asc / xb.upm * SW_TIME
+    hm = time_text(SW_LEFT * k, baseline_top(xb, SW_TIME, time_b) * k, (hm_w + 8) * k, xb.line_h(SW_TIME) * k, "hh:mm",
+                   xb, SW_TIME * k, argb("f2f2f2"), align="START", letter_spacing=ls)
+    ss_x = SW_LEFT + hm_w + 3
+    ss = part_text(ss_x * k, baseline_top(xb, SW_SECS, time_b) * k, (xb.width(":00", SW_SECS) + 6) * k,
+                   xb.line_h(SW_SECS) * k, xb, SW_SECS * k, argb(SW_DIM), template(":%s", "[SECOND_Z]"), align="START")
+    preview += [("text", SW_LEFT, time_b, hm_w + 8, xb, SW_TIME, "f2f2f2", "10:08", "START", ls),
+                ("text", ss_x, time_b, 60, xb, SW_SECS, SW_DIM, ":32", "START", 0)]
+
+    date = col("date", 0, template("%s, %s %s %s · %s", "[DAY_OF_WEEK_S]", "[DAY]", "[MONTH_S]", "[YEAR]",
+                                   "[TIMEZONE_ABB]"), SW_DATE, "Thu, 26 Nov 2026 · IST")
+
+    battery = [col("battery", 0, "✓ Battery", SW_TEXT, "✓ Battery"),
+               col("battery", 10, template("%d%%", "[BATTERY_PERCENT]"), SW_GREEN, "68%")]
+    hr = [col("hr", 0, "✓ HR", SW_TEXT, "✓ HR"),
+          condition("has_hr", "[HEART_RATE] > 0",
+                    col("hr", 5, template("%d bpm", "round([HEART_RATE])"), SW_RED, "72 bpm"),
+                    col("hr", 5, "-- bpm", SW_RED, ""))]
+
+    def steps_render(f1, p1):
+        return sw_choose("goal", sw_grouped("[STEP_GOAL]"),
+                         lambda f2, p2: col("steps", 0, template(f"✓ Steps {f1} / {f2}", *p1, *p2), SW_TEXT, ""))
+    # No step goal set (0): just the count.
+    steps = condition("has_goal", "[STEP_GOAL] > 0",
+                      sw_choose("steps", sw_grouped("[STEP_COUNT]"), steps_render),
+                      sw_choose("steps", sw_grouped("[STEP_COUNT]"),
+                                lambda f, p: col("steps", 0, template(f"✓ Steps {f}", *p), SW_TEXT, "")))
+    preview.append(("text", SW_LEFT, line_baseline(reg, SW_ROWS["steps"]), 300, reg, SW_BODY, SW_TEXT,
+                    "✓ Steps 7,842 / 10,000", "START", 0))
+    energy = col("energy", 0, template("✓ %d kcal · %d.%d km", "floor([STEP_COUNT] * 0.04)",
+                                       "floor([STEP_COUNT] * 0.000762)", "floor([STEP_COUNT] * 0.00762) % 10"),
+                 SW_TEXT, "✓ 313 kcal · 5.9 km")
+
+    def weather_line(unit):
+        return col("weather", 0, template(f"✓ %d°{unit} %s · H%d L%d · UV %d", "[WEATHER.TEMPERATURE]",
+                                          "[WEATHER.CONDITION_NAME]", "[WEATHER.DAY_TEMPERATURE_HIGH]",
+                                          "[WEATHER.DAY_TEMPERATURE_LOW]", "[WEATHER.UV_INDEX]"), SW_TEXT, "")
+    weather = condition("weather", "[WEATHER.IS_AVAILABLE]",
+                        condition("fahrenheit", "[WEATHER.TEMPERATURE_UNIT] == 2", weather_line("F"), weather_line("C")),
+                        col("weather", 0, "✓ Weather --", SW_TEXT, ""))
+    preview.append(("text", SW_LEFT, line_baseline(reg, SW_ROWS["weather"]), 300, reg, SW_BODY, SW_TEXT,
+                    "✓ 24°C Haze · H28 L19 · UV 3", "START", 0))
+
+    # Next event: a complication slot (LONG_TEXT / SHORT_TEXT), unread notifications at the right.
+    msgs_cols = 8
+    nx = SW_LEFT + 2 * SW_COL
+    nw = SW_RIGHT - msgs_cols * SW_COL - nx
+    n_b = line_baseline(reg, SW_ROWS["next"])
+    n_top, n_h = baseline_top(reg, SW_BODY, n_b), reg.line_h(SW_BODY)
+    sx, sy, sw_, sh = (math.floor(v) for v in (nx * k, n_top * k, nw * k, n_h * k + 1))
+
+    def slot_text(body):
+        return part_text(0, 0, sw_, sh, reg, SW_BODY * k, argb(SW_TEXT), body, align="START")
+    next_event = f"""<ComplicationSlot slotId="0" x="{sx}" y="{sy}" width="{sw_}" height="{sh}" displayName="next_label"
+    supportedTypes="LONG_TEXT SHORT_TEXT EMPTY" isCustomizable="TRUE">
+  <DefaultProviderPolicy defaultSystemProvider="NEXT_EVENT" defaultSystemProviderType="LONG_TEXT"/>
+  <BoundingBox x="0" y="0" width="{sw_}" height="{sh}"/>
+  <Complication type="LONG_TEXT">
+{indent(slot_text(template("%s %s", "[COMPLICATION.TITLE]", "[COMPLICATION.TEXT]")), 4)}
+  </Complication>
+  <Complication type="SHORT_TEXT">
+{indent(slot_text(template("%s", "[COMPLICATION.TEXT]")), 4)}
+  </Complication>
+  <Complication type="EMPTY">
+{indent(slot_text("no events"), 4)}
+  </Complication>
+</ComplicationSlot>"""
+    preview.append(("text", nx, n_b, nw, reg, SW_BODY, SW_TEXT, "21:00 Standup", "START", 0))
+    msgs_x = SW_RIGHT - msgs_cols * SW_COL
+    msgs = condition("msgs", "[UNREAD_NOTIFICATION_COUNT] > 0",
+                     condition("one_msg", "[UNREAD_NOTIFICATION_COUNT] == 1",
+                               text_at(msgs_x, SW_ROWS["next"], msgs_cols * SW_COL, "1 msg", SW_AMBER, "", align="END"),
+                               text_at(msgs_x, SW_ROWS["next"], msgs_cols * SW_COL,
+                                       template("%d msgs", "[UNREAD_NOTIFICATION_COUNT]"), SW_AMBER, "", align="END")))
+    preview.append(("text", msgs_x, n_b, msgs_cols * SW_COL, reg, SW_BODY, SW_AMBER, "3 msgs", "END", 0))
+    arrow = col("next", 0, "→", SW_TEXT, "→")
+
+    # Blinking block cursor after "npm ": 8 x 15, its bottom 3px below the baseline.
+    cur_x = SW_LEFT + 13 * SW_COL
+    cur_y = line_baseline(reg, SW_ROWS["p_npm"]) + 3 - 15
+    cursor = condition("cursor", "[SECOND] % 2 == 0", rect(cur_x * k, cur_y * k, 8 * k, 15 * k, argb("d0d0d0")))
+    preview.append(("box", cur_x, cur_y, 8, 15, "d0d0d0"))
+
+    first_prompt = prompt(SW_TOP, "date")
+    for name in ("p_status", "p_next", "p_npm"):
+        first_prompt += prompt(name, {"p_status": "status", "p_next": "next", "p_npm": "npm"}[name])
+    text_lines = [*first_prompt, date, *battery, *hr, steps, energy, weather, arrow, msgs]
+
+    scene = [
+        group("chrome", chrome, ambient_alpha=0),
+        group("frame", [border, *lights, title], ambient_alpha=110),
+        group("lines", text_lines, ambient_alpha=170),
+        next_event,
+        group("time", [hm], ambient_alpha=230),
+        group("live", [ss, cursor], ambient_alpha=0),
+    ]
+    sw_preview_images(base, preview)
+    write_module(face, "Shell Window", SW_ACCENTS, scene, res, base, strings={"next_label": "Next event"})
+
+
+def sw_preview_images(base, ops, k=SW_K):
+    """Preview at 10:08:32 with sample data, one per accent, from the same layout as the XML."""
+    from PIL import ImageFont
+    ss = 3
+    k = k * ss
+    for name, hex_ in SW_ACCENTS:
+        img = Image.new("RGBA", (SIZE * ss, SIZE * ss), (0, 0, 0, 255))
+        dr = ImageDraw.Draw(img)
+        for op in ops:
+            kind = op[0]
+            if kind in ("rrect", "stroke"):
+                _, x, y, w, h, r, c = op
+                box = [x * k, y * k, (x + w) * k - 1, (y + h) * k - 1]
+                if kind == "rrect":
+                    dr.rounded_rectangle(box, r * k, fill="#" + c)
+                else:
+                    dr.rounded_rectangle(box, r * k, outline="#" + c, width=ss)
+            elif kind == "dot":
+                _, x, y, d, c = op
+                dr.ellipse([(x - d / 2) * k, (y - d / 2) * k, (x + d / 2) * k, (y + d / 2) * k], fill="#" + c)
+            elif kind == "box":
+                _, x, y, w, h, c = op
+                dr.rectangle([x * k, y * k, (x + w) * k - 1, (y + h) * k - 1], fill="#" + c)
+            elif kind == "text":
+                _, x, b, w, font, size, c, sample, align, ls = op
+                if not sample:
+                    continue
+                pil = ImageFont.truetype(font.src, round(size * k))
+                adv = (0.6 + ls) * size * k
+                total = adv * len(sample)
+                x0 = x * k + {"START": 0, "CENTER": (w * k - total) / 2, "END": w * k - total}[align]
+                fill = "#" + (hex_ if c == "ACCENT" else c)
+                for i, ch in enumerate(sample):
+                    dr.text((x0 + i * adv, b * k), ch, font=pil, fill=fill, anchor="ls")
+        # Round screen, then downsample.
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, img.size[0] - 1, img.size[1] - 1], fill=255)
+        out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        out.paste(img, (0, 0), mask)
+        d = os.path.join(base, name, "res", "drawable-nodpi")
+        os.makedirs(d, exist_ok=True)
+        out.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(d, "preview.png"), optimize=True)
+
+
+# ---------------------------------------------------------------- Shell Full
+#
+# A redesign of Shell Window for the whole round screen: no window box, just the terminal
+# text, as large as fits. Every line
+# starts at one left margin (stepped in where the bezel curves, on the first and last
+# rows) and is clipped at the circle on the right. JetBrains Mono is monospaced (600
+# units per glyph), so coloured spans on one line are separate PartTexts placed by column.
+# Same data as Shell Window (see there); shares its colours, accents and helpers.
+
+SF_K = 1  # laid out directly on the 450 x 450 face
+SF_BODY, SF_LINE = 19, 25  # body font size / line pitch
+SF_TIME, SF_SECS = 80, 30
+SF_COL = 0.6 * SF_BODY  # one monospace column at body size
+SF_LEFT = 82  # common left margin
+SF_EDGE = 8  # gap kept from the bezel
+SF_ROW_NAMES = ["p_date", "time", "date", "p_status", "battery", "hr", "steps", "energy", "weather", "p_next",
+                "next", "p_npm"]
+
+
+def _sf_rows():
+    rows, y = {}, (SIZE - (len(SF_ROW_NAMES) - 1) * SF_LINE - (SF_TIME + 4)) / 2
+    for name in SF_ROW_NAMES:
+        rows[name] = y
+        y += SF_TIME + 4 if name == "time" else SF_LINE
+    return rows
+
+
+SF_ROWS = _sf_rows()
+
+
+def sf_row_bounds(top, h=SF_LINE):
+    """(left, right) for a row: the common margin, kept SF_EDGE inside the circle."""
+    worst = max(abs(top - CY), abs(top + h - CY))
+    half = math.sqrt(max(0.0, CX * CX - worst * worst))
+    return max(SF_LEFT, CX - half + SF_EDGE), CX + half - SF_EDGE
+
+
+def shell_full():
+    face = "shellfull"
+    base = os.path.join(ROOT, "watchfaces", face, "src")
+    res = os.path.join(base, "main", "res")
+    fdir = os.path.join(res, "font")
+    reg = Font("jetbrainsmono_regular.ttf", fdir, "jetbrainsmono_regular", None, extra_chars="✓→—")
+    xb = Font("jetbrainsmono_extrabold.ttf", fdir, "jetbrainsmono_extrabold", None)
+    k = SF_K
+    preview = []  # (kind, ...) draw ops in design px, for the preview image
+
+    def baseline_top(font, size, baseline):
+        """Top of a centred, content-high PartText box whose baseline lands at `baseline`."""
+        return baseline - font.asc / font.upm * size
+
+    def line_baseline(font, row_top, size=SF_BODY):
+        content = (font.asc + font.desc + font.gap) / font.upm * size
+        return row_top + (SF_LINE - content) / 2 + font.asc / font.upm * size
+
+    def text_at(x, row_top, w, body, color, sample, font=reg, size=SF_BODY, align="START", tint=None):
+        b = line_baseline(font, row_top, size)
+        top = baseline_top(font, size, b)
+        h = font.line_h(size)
+        preview.append(("text", x, b, w, font, size, "ACCENT" if tint else color, sample, align, 0))
+        return part_text(x * k, top * k, w * k, h * k, font, size * k, argb(color), body, align=align,
+                         tint=tint)
+
+    def col(row, c, body, color, sample, width_cols=None, align="START", tint=None):
+        left, right = sf_row_bounds(SF_ROWS[row])
+        x = left + c * SF_COL
+        w = width_cols * SF_COL if width_cols else right - x
+        return text_at(x, SF_ROWS[row], w, body, color, sample, align=align, tint=tint)
+
+    def prompt(row, cmd):
+        return [col(row, 0, "watch:~$", "ffffff", "watch:~$", tint=ACCENT),
+                col(row, 9, cmd, SW_GREEN, cmd)]
+
+    # Time row: HH:MM (ExtraBold) then :SS (grey) on the same baseline. The design's
+    # -2px tracking is left out: WFF doesn't apply negative letterSpacing to PartText, so
+    # :SS would overlap the minutes.
+    ls = 0
+    hm_w = xb.width("00:00", SF_TIME, ls)
+    time_row = SF_ROWS["time"] + 2
+    time_b = time_row + SF_TIME * (1 - (xb.asc + xb.desc) / xb.upm) / 2 + xb.asc / xb.upm * SF_TIME
+    hm = time_text(SF_LEFT * k, baseline_top(xb, SF_TIME, time_b) * k, (hm_w + 8) * k, xb.line_h(SF_TIME) * k, "hh:mm",
+                   xb, SF_TIME * k, argb("f2f2f2"), align="START", letter_spacing=ls)
+    ss_x = SF_LEFT + hm_w + 3
+    ss = part_text(ss_x * k, baseline_top(xb, SF_SECS, time_b) * k, (xb.width(":00", SF_SECS) + 6) * k,
+                   xb.line_h(SF_SECS) * k, xb, SF_SECS * k, argb(SW_DIM), template(":%s", "[SECOND_Z]"), align="START")
+    preview += [("text", SF_LEFT, time_b, hm_w + 8, xb, SF_TIME, "f2f2f2", "10:08", "START", ls),
+                ("text", ss_x, time_b, 60, xb, SF_SECS, SW_DIM, ":32", "START", 0)]
+
+    date = col("date", 0, template("%s, %s %s %s · %s", "[DAY_OF_WEEK_S]", "[DAY]", "[MONTH_S]", "[YEAR]",
+                                   "[TIMEZONE_ABB]"), SW_DATE, "Thu, 26 Nov 2026 · IST")
+
+    battery = [col("battery", 0, "✓ Battery", SW_TEXT, "✓ Battery"),
+               col("battery", 10, template("%d%%", "[BATTERY_PERCENT]"), SW_GREEN, "68%")]
+    hr = [col("hr", 0, "✓ HR", SW_TEXT, "✓ HR"),
+          condition("has_hr", "[HEART_RATE] > 0",
+                    col("hr", 5, template("%d bpm", "round([HEART_RATE])"), SW_RED, "72 bpm"),
+                    col("hr", 5, "-- bpm", SW_RED, ""))]
+
+    def steps_render(f1, p1):
+        return sw_choose("goal", sw_grouped("[STEP_GOAL]"),
+                         lambda f2, p2: col("steps", 0, template(f"✓ Steps {f1} / {f2}", *p1, *p2), SW_TEXT, ""))
+    # No step goal set (0): just the count.
+    steps = condition("has_goal", "[STEP_GOAL] > 0",
+                      sw_choose("steps", sw_grouped("[STEP_COUNT]"), steps_render),
+                      sw_choose("steps", sw_grouped("[STEP_COUNT]"),
+                                lambda f, p: col("steps", 0, template(f"✓ Steps {f}", *p), SW_TEXT, "")))
+    preview.append(("text", SF_LEFT, line_baseline(reg, SF_ROWS["steps"]), 300, reg, SF_BODY, SW_TEXT,
+                    "✓ Steps 7,842 / 10,000", "START", 0))
+    energy = col("energy", 0, template("✓ %d kcal · %d.%d km", "floor([STEP_COUNT] * 0.04)",
+                                       "floor([STEP_COUNT] * 0.000762)", "floor([STEP_COUNT] * 0.00762) % 10"),
+                 SW_TEXT, "✓ 313 kcal · 5.9 km")
+
+    def weather_line(unit):
+        return col("weather", 0, template(f"✓ %d°{unit} %s · H%d L%d · UV %d", "[WEATHER.TEMPERATURE]",
+                                          "[WEATHER.CONDITION_NAME]", "[WEATHER.DAY_TEMPERATURE_HIGH]",
+                                          "[WEATHER.DAY_TEMPERATURE_LOW]", "[WEATHER.UV_INDEX]"), SW_TEXT, "")
+    weather = condition("weather", "[WEATHER.IS_AVAILABLE]",
+                        condition("fahrenheit", "[WEATHER.TEMPERATURE_UNIT] == 2", weather_line("F"), weather_line("C")),
+                        col("weather", 0, "✓ Weather --", SW_TEXT, ""))
+    preview.append(("text", SF_LEFT, line_baseline(reg, SF_ROWS["weather"]), 300, reg, SF_BODY, SW_TEXT,
+                    "✓ 24°C Haze · H28 L19 · UV 3", "START", 0))
+
+    # Next event: a complication slot (LONG_TEXT / SHORT_TEXT), unread notifications at the right.
+    msgs_cols = 7
+    n_left, n_right = sf_row_bounds(SF_ROWS["next"])
+    nx = n_left + 2 * SF_COL
+    nw = n_right - msgs_cols * SF_COL - nx
+    n_b = line_baseline(reg, SF_ROWS["next"])
+    n_top, n_h = baseline_top(reg, SF_BODY, n_b), reg.line_h(SF_BODY)
+    sx, sy, sw_, sh = (math.floor(v) for v in (nx * k, n_top * k, nw * k, n_h * k + 1))
+
+    def slot_text(body):
+        return part_text(0, 0, sw_, sh, reg, SF_BODY * k, argb(SW_TEXT), body, align="START")
+    next_event = f"""<ComplicationSlot slotId="0" x="{sx}" y="{sy}" width="{sw_}" height="{sh}" displayName="next_label"
+    supportedTypes="LONG_TEXT SHORT_TEXT EMPTY" isCustomizable="TRUE">
+  <DefaultProviderPolicy defaultSystemProvider="NEXT_EVENT" defaultSystemProviderType="LONG_TEXT"/>
+  <BoundingBox x="0" y="0" width="{sw_}" height="{sh}"/>
+  <Complication type="LONG_TEXT">
+{indent(slot_text(template("%s %s", "[COMPLICATION.TITLE]", "[COMPLICATION.TEXT]")), 4)}
+  </Complication>
+  <Complication type="SHORT_TEXT">
+{indent(slot_text(template("%s", "[COMPLICATION.TEXT]")), 4)}
+  </Complication>
+  <Complication type="EMPTY">
+{indent(slot_text("no events"), 4)}
+  </Complication>
+</ComplicationSlot>"""
+    preview.append(("text", nx, n_b, nw, reg, SF_BODY, SW_TEXT, "21:00 Standup", "START", 0))
+    msgs_x = n_right - msgs_cols * SF_COL
+    msgs = condition("msgs", "[UNREAD_NOTIFICATION_COUNT] > 0",
+                     condition("one_msg", "[UNREAD_NOTIFICATION_COUNT] == 1",
+                               text_at(msgs_x, SF_ROWS["next"], msgs_cols * SF_COL, "1 msg", SW_AMBER, "", align="END"),
+                               text_at(msgs_x, SF_ROWS["next"], msgs_cols * SF_COL,
+                                       template("%d msgs", "[UNREAD_NOTIFICATION_COUNT]"), SW_AMBER, "", align="END")))
+    preview.append(("text", msgs_x, n_b, msgs_cols * SF_COL, reg, SF_BODY, SW_AMBER, "3 msgs", "END", 0))
+    arrow = col("next", 0, "→", SW_TEXT, "→")
+
+    # Blinking block cursor after "npm " (design: 8 x 15 at 13px, bottom 3px below the baseline).
+    cur_w, cur_h, cur_drop = SF_BODY * 8 / 13, SF_BODY * 15 / 13, SF_BODY * 3 / 13
+    cur_x = sf_row_bounds(SF_ROWS["p_npm"])[0] + 13 * SF_COL
+    cur_y = line_baseline(reg, SF_ROWS["p_npm"]) + cur_drop - cur_h
+    cursor = condition("cursor", "[SECOND] % 2 == 0", rect(cur_x * k, cur_y * k, cur_w * k, cur_h * k, argb("d0d0d0")))
+    preview.append(("box", cur_x, cur_y, cur_w, cur_h, "d0d0d0"))
+
+    first_prompt = []
+    for name, cmd in (("p_date", "date"), ("p_status", "status"), ("p_next", "next"), ("p_npm", "npm")):
+        first_prompt += prompt(name, cmd)
+    text_lines = [*first_prompt, date, *battery, *hr, steps, energy, weather, arrow, msgs]
+
+    scene = [
+        group("lines", text_lines, ambient_alpha=170),
+        next_event,
+        group("time", [hm], ambient_alpha=230),
+        group("live", [ss, cursor], ambient_alpha=0),
+    ]
+    sw_preview_images(base, preview, k=SF_K)
+    write_module(face, "Shell Full", SW_ACCENTS, scene, res, base, strings={"next_label": "Next event"})
+
+
 # ---------------------------------------------------------------- module files
 
-def write_module(face, title, accents, scene, res, base, user_config=True, extra="", editable=True):
+def write_module(face, title, accents, scene, res, base, user_config=True, extra="", editable=True,
+                 strings=None):
     """scene: list of scene XML children, or a function accent index -> list (per-flavour scenes)."""
     for d in ("values", "xml", "drawable-nodpi"):
         os.makedirs(os.path.join(res, d), exist_ok=True)
@@ -930,3 +1384,5 @@ if __name__ == "__main__":
     mono_stack()
     dot_matrix()
     ember_forest()
+    shell_window()
+    shell_full()

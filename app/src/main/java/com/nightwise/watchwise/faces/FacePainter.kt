@@ -44,6 +44,8 @@ internal fun ZonedDateTime.displayHour(is24Hour: Boolean): Int =
 object Fonts {
     const val SPACE_GROTESK = "spacegrotesk.ttf"
     const val DOTO = "doto.ttf"
+    const val JETBRAINS_MONO = "jetbrainsmono_regular.ttf"
+    const val JETBRAINS_MONO_EXTRABOLD = "jetbrainsmono_extrabold.ttf"
 
     private val cache = HashMap<String, Typeface>()
 
@@ -53,6 +55,11 @@ object Fonts {
                 .setFontVariationSettings("'wght' $weight")
                 .build()
         }
+    }
+
+    /** A static (non-variable) font file. */
+    fun static(assets: AssetManager, file: String): Typeface = synchronized(cache) {
+        cache.getOrPut(file) { Typeface.createFromAsset(assets, "fonts/$file") }
     }
 }
 

@@ -25,4 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "WatchWise"
 include(":app")
 // Watch Face Format faces pushed by the app (see tools/gen_watchfaces.py).
-include(":watchfaces:monostack", ":watchfaces:dotmatrix", ":watchfaces:emberforest")
+include(":watchfaces:monostack", ":watchfaces:dotmatrix", ":watchfaces:emberforest", ":watchfaces:shellwindow", ":watchfaces:shellfull")

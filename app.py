@@ -44,6 +44,8 @@ WATCH_FACES = {
     "monostack": ("Mono Stack", ["red", "orange", "cyan", "white"]),
     "dotmatrix": ("Dot Matrix", ["lime", "white", "cyan", "orange"]),
     "emberforest": ("Ember Forest", ["orange", "cyan", "violet", "green"]),
+    "shellwindow": ("Shell Window", ["blue", "green", "amber", "purple"]),
+    "shellfull": ("Shell Full", ["blue", "green", "amber", "purple"]),
 }
 
 
