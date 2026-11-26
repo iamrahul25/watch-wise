@@ -36,6 +36,10 @@ release/
 .idea/deploymentTargetDropDown.xml
 .idea/inspectionProfiles/Project_Default.xml
 
+# ---- Personal editor / tool settings ----
+.vscode/
+.claude/settings.local.json
+
 # ---- Logs & OS files ----
 *.log
 .DS_Store

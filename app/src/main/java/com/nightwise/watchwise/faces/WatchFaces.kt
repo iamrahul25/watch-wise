@@ -26,6 +26,8 @@ enum class WatchFace(
     val accents: List<Accent>,
     /** Shows steps / heart rate. */
     val usesSensors: Boolean,
+    /** Moves between seconds, so its preview redraws at 10 fps. */
+    val animated: Boolean = false,
 ) {
     MONO_STACK(
         id = "mono_stack",
@@ -48,11 +50,25 @@ enum class WatchFace(
             accent("cyan", 0x3BD8FF), accent("orange", 0xFF8A00),
         ),
         usesSensors = true,
+    ),
+    EMBER_FOREST(
+        id = "ember_forest",
+        pushName = "emberforest",
+        title = "Ember Forest",
+        tagline = "Campfire",
+        // Flame colour (baked into the fire animation, so not changeable on the watch).
+        accents = listOf(
+            accent("orange", 0xFF8A00), accent("cyan", 0x3DD6FF),
+            accent("violet", 0xB469FF), accent("green", 0x5CFF7A),
+        ),
+        usesSensors = true,
+        animated = true,
     );
 
     fun createPainter(assets: AssetManager): FacePainter = when (this) {
         MONO_STACK -> MonoStackPainter(assets)
         DOT_MATRIX -> DotMatrixPainter(assets)
+        EMBER_FOREST -> EmberForestPainter()
     }
 
     /** Package name of the pushed watch face for an accent (must start with "<app>.watchfacepush."). */

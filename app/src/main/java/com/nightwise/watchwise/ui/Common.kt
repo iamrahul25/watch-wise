@@ -43,13 +43,13 @@ val AmoledColors = ColorScheme(
     onBackground = Color(0xFFFFFFFF),
 )
 
-/** Current time, ticking on each new second. */
+/** Current time, ticking on each new second (or every [tickMs] ms). */
 @Composable
-fun rememberNow(): ZonedDateTime {
+fun rememberNow(tickMs: Long = 1000): ZonedDateTime {
     var now by remember { mutableStateOf(ZonedDateTime.now()) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(tickMs) {
         while (true) {
-            delay(1000 - System.currentTimeMillis() % 1000)
+            delay(tickMs - System.currentTimeMillis() % tickMs)
             now = ZonedDateTime.now()
         }
     }
@@ -61,7 +61,7 @@ fun rememberNow(): ZonedDateTime {
 fun FacePreview(face: WatchFace, modifier: Modifier = Modifier, accent: Int? = null) {
     val context = LocalContext.current
     val painter = remember(face) { face.createPainter(context.assets) }
-    val now = rememberNow()
+    val now = rememberNow(if (face.animated) 100 else 1000)
     val bounds = remember { Rect() }
     Canvas(
         modifier

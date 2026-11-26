@@ -43,6 +43,7 @@ FACE_PREFIX = PACKAGE + ".watchfacepush."
 WATCH_FACES = {
     "monostack": ("Mono Stack", ["red", "orange", "cyan", "white"]),
     "dotmatrix": ("Dot Matrix", ["lime", "white", "cyan", "orange"]),
+    "emberforest": ("Ember Forest", ["orange", "cyan", "violet", "green"]),
 }
 
 
@@ -351,7 +352,13 @@ On the watch:
     print("  On the watch: Wireless debugging > 'Pair new device'. It shows an IP:port and a code.")
     pair_addr = input("  Pairing IP:port (press Enter to skip if already paired): ").strip()
     if pair_addr:
-        code = input("  Pairing code: ").strip()
+        if ":" not in pair_addr:
+            print("  That has no port. Enter it exactly as the pairing screen shows it, e.g. 192.168.0.102:41235")
+            return
+        code = input("  Pairing code (6 digits): ").strip().replace(" ", "")
+        if not (code.isdigit() and len(code) == 6):
+            print("  The pairing code is 6 digits. Check the watch screen and try again.")
+            return
         res = run([adb, "pair", pair_addr, code], check=False, capture=True, timeout=60)
         print("  " + (res.stdout + res.stderr).strip())
         if "Successfully paired" not in res.stdout:
@@ -362,6 +369,9 @@ On the watch:
     conn_addr = input("  Connect IP:port: ").strip()
     if not conn_addr:
         print("  Skipped.")
+        return
+    if ":" not in conn_addr:
+        print("  That has no port. Use the 'IP address & port' from the main Wireless debugging screen.")
         return
     res = run([adb, "connect", conn_addr], check=False, capture=True, timeout=60)
     print("  " + (res.stdout + res.stderr).strip())

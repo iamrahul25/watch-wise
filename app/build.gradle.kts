@@ -107,11 +107,20 @@ abstract class BundleWatchFacesTask : DefaultTask() {
     }
 }
 
-val watchFaceModules = listOf("monostack", "dotmatrix")
+// Face module -> accent flavours. Keep in sync with `accents` in watchfaces/<face>/build.gradle.kts.
+val watchFaceModules = mapOf(
+    "monostack" to listOf("red", "orange", "cyan", "white"),
+    "dotmatrix" to listOf("lime", "white", "cyan", "orange"),
+    "emberforest" to listOf("orange", "cyan", "violet", "green"),
+)
 
 val bundleWatchFaces = tasks.register<BundleWatchFacesTask>("bundleWatchFaces") {
-    watchFaceModules.forEach { dependsOn(":watchfaces:$it:assembleRelease") }
-    apks.from(watchFaceModules.map { rootProject.file("watchfaces/$it/build/outputs/apk") })
+    watchFaceModules.keys.forEach { dependsOn(":watchfaces:$it:assembleRelease") }
+    // Only the release output folders: outputs/apk/<accent>/debug belongs to debug tasks
+    // (e.g. from app.py option 6) that this task doesn't depend on, which Gradle rejects.
+    apks.from(watchFaceModules.flatMap { (face, accents) ->
+        accents.map { rootProject.file("watchfaces/$face/build/outputs/apk/$it/release") }
+    })
     validatorClasspath.from(watchFaceValidator)
     marketplacePackage.set("com.nightwise.watchwise")
     outputDir.set(layout.buildDirectory.dir("generated/watchfaceAssets"))
