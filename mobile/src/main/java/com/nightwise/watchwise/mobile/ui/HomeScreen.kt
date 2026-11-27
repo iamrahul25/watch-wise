@@ -41,13 +41,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nightwise.watchwise.faces.WatchFace
 import com.nightwise.watchwise.link.RemoteFace
 import com.nightwise.watchwise.mobile.CompanionViewModel
 import com.nightwise.watchwise.mobile.Link
+
+private const val PRIVACY_POLICY_URL = "https://iamrahul25.github.io/watch-wise-pages/privacy-policy.html"
 
 @Composable
 fun HomeScreen(model: CompanionViewModel, grid: LazyGridState, onOpen: (WatchFace) -> Unit) {
@@ -113,6 +117,14 @@ private fun Header(link: Link) {
         Column(Modifier.weight(1f)) {
             Text("Watch Wise", style = MaterialTheme.typography.displaySmall)
             Text("Faces for your wrist", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+            val uriHandler = LocalUriHandler.current
+            Text(
+                "Privacy policy",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted,
+                textDecoration = TextDecoration.Underline,
+                modifier = Modifier.padding(top = 4.dp).clickable { uriHandler.openUri(PRIVACY_POLICY_URL) },
+            )
         }
         ConnectionPill(link)
     }

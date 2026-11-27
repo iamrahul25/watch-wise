@@ -1956,6 +1956,316 @@ def tm_preview_images(base, res, ops):
         out.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(d, "preview.png"), optimize=True)
 
 
+# ---------------------------------------------------------------- Commit Grid
+#
+# A Git-hosting look: minute ring with twelve "commit" dots, a shell prompt, status badges and
+# a 13 x 7 contribution grid. The design is drawn on a 360 x 360 board (scaled by 1.25 here).
+# WFF has no step history (or network), so the grid shows today's step goal: its 91 cells fill
+# column by column as the goal is reached, and the outline marks the cell being worked on.
+# "N commits" in the top line is one per 1,000 steps.
+
+CG_ACCENTS = [("green", "39D353"), ("blue", "58A6FF"), ("purple", "BC8CFF"), ("orange", "FF9E3D")]
+CG_WHITE, CG_GREY, CG_MUTED = "e6edf3", "8b949e", "6e7681"
+CG_CELL_BG, CG_TRACK, CG_DOT, CG_SECOND = "111418", "21262d", "30363d", "f78166"
+CG_LABEL_BG, CG_LABEL = "30363d", "c9d1d9"
+CG_BADGES = [  # (row y, [(id, label, colour, value characters, preview value)])
+    (232.5, [("battery", "battery", "238636", 4, "82%"), ("steps", "steps", "1f6feb", 6, "7,240")]),
+    (262.5, [("bpm", "bpm", "da3633", 3, "72"), ("temp", "temp", "bd561d", 5, "29°C")]),
+]
+CG_R = 203.75  # minute ring radius
+CG_COLS, CG_ROWS, CG_CELL, CG_STEP = 13, 7, 10, 12.5
+CG_CELLS = CG_COLS * CG_ROWS
+CG_GRID_X = CX - (CG_COLS * CG_STEP - (CG_STEP - CG_CELL)) / 2
+CG_GRID_Y = 297
+CG_LEVELS = [80, 130, 190, 255]  # accent alpha of the four contribution levels
+CG_GOAL = "([STEP_GOAL] > 0 ? [STEP_GOAL] : 10000)"
+CG_TEXT = 13.75  # badge and curved line font size
+CG_CHAR = 0.6 * CG_TEXT  # JetBrains Mono advance
+CG_INFO_X, CG_INFO_Y = 342, 328  # centre of the info icon, right of the grid
+CG_INFO_TAP = 52  # tap target
+CG_GUIDE = "com.nightwise.watchwise/com.nightwise.watchwise.CommitGridGuideActivity"
+
+
+def cg_levels():
+    """The design's pseudo-random shade (0..3) of every cell, stable between builds."""
+    seed, out = 7, []
+    for _ in range(CG_CELLS):
+        seed = (seed * 9301 + 49297) % 233280
+        v = seed / 233280
+        out.append(0 if v < 0.3 else 1 if v < 0.55 else 2 if v < 0.8 else 3)
+    return out
+
+
+def cg_badge_layout():
+    """(id, label, colour, x, y, label width, value width, preview value) per badge."""
+    for y, items in CG_BADGES:
+        widths = [(len(label) * CG_CHAR + 12.5, chars * CG_CHAR + 12.5) for _, label, _, chars, _ in items]
+        x = CX - (sum(a + b for a, b in widths) + 10 * (len(items) - 1)) / 2
+        for (key, label, color, _, sample), (lw, vw) in zip(items, widths):
+            yield key, label, color, x, y, lw, vw, sample
+            x += lw + vw + 10
+
+
+def commit_grid():
+    face = "commitgrid"
+    base = os.path.join(ROOT, "watchfaces", face, "src")
+    res = os.path.join(base, "main", "res")
+    mono = Font("jetbrainsmono_regular.ttf", os.path.join(res, "font"), "jetbrainsmono_regular", None)
+
+    def top_of(baseline, size):
+        return baseline - mono.asc / mono.upm * size
+
+    def text(x, baseline, w, size, color, body, align="CENTER", tint=None):
+        return part_text(x, top_of(baseline, size), w, mono.line_h(size) + 2, mono, size, argb(color), body,
+                         align=align, tint=tint)
+
+    def box(x, y, w, h, r, color, tint=None, alpha=255, transform=""):
+        """Rounded rectangle at a fractional position."""
+        px, py = math.floor(x), math.floor(y)
+        tint_attr = f' tintColor="{tint}"' if tint else ""
+        return f"""<PartDraw x="{px}" y="{py}" width="{math.ceil(w) + 2}" height="{math.ceil(h) + 2}" alpha="{alpha}"{tint_attr}>{transform}
+  <RoundRectangle x="{fmt(x - px)}" y="{fmt(y - py)}" width="{fmt(w)}" height="{fmt(h)}" cornerRadiusX="{fmt(r)}" cornerRadiusY="{fmt(r)}"><Fill color="{argb(color)}"/></RoundRectangle>
+</PartDraw>"""
+
+    def rotating(name, expr, children):
+        """Full-screen group turned clockwise around the centre by `expr` degrees."""
+        body = "\n".join(indent(c, 2) for c in children)
+        return f"""<Group name="{name}" x="0" y="0" width="{SIZE}" height="{SIZE}" pivotX="0.5" pivotY="0.5">
+  <Transform target="angle" value="{escape(expr)}"/>
+{body}
+</Group>"""
+
+    def arc(color, thickness, end, tint=None, alpha=255, transform=""):
+        tint_attr = f' tintColor="{tint}"' if tint else ""
+        return f"""<PartDraw x="0" y="0" width="{SIZE}" height="{SIZE}" alpha="{alpha}"{tint_attr}>
+  <Arc centerX="{fmt(CX)}" centerY="{fmt(CY)}" width="{fmt(2 * CG_R)}" height="{fmt(2 * CG_R)}" startAngle="0" endAngle="{end}">{transform}
+    <Stroke color="{argb(color)}" thickness="{fmt(thickness)}" cap="ROUND"/>
+  </Arc>
+</PartDraw>"""
+
+    def node(x, y, outer, hole, core, color, tint=None):
+        """Commit dot: ring of diameter `outer` around a black hole, with an optional core."""
+        parts = [dot(x, y, outer, argb(color), tint), dot(x, y, hole, "#ff000000")]
+        if core:
+            parts.append(dot(x, y, core, argb(color), tint))
+        return "\n".join(parts)
+
+    def ring_point(deg):
+        return CX + CG_R * math.sin(math.radians(deg)), CY - CG_R * math.cos(math.radians(deg))
+
+    # Minute ring.
+    track = arc(CG_TRACK, 2.5, 359.9)
+    progress = condition(
+        "minutes", "[MINUTE] > 0",
+        arc("ffffff", 3.2, 6, tint=ACCENT, alpha=205,
+            transform='\n    <Transform target="endAngle" value="[MINUTE] * 6"/>'))
+    commits = []
+    for i in range(12):
+        x, y = ring_point(i * 30)
+        commits.append(node(x, y, 13.75, 8.75, 0, CG_DOT))
+        commits.append(f"""<Group name="commit_{i}" x="0" y="0" width="{SIZE}" height="{SIZE}" alpha="0">
+  <Transform target="alpha" value="[MINUTE] &gt;= {i * 5} ? 255 : 0"/>
+{indent(node(x, y, 13.75, 8.75, 4, "ffffff", ACCENT), 2)}
+</Group>""")
+    top_x, top_y = ring_point(0)
+    head = rotating("head", "[MINUTE] * 6", [node(top_x, top_y, 23, 16.8, 8.75, "ffffff", ACCENT)])
+    second = rotating("second", "[SECOND] * 6", [dot(top_x, top_y, 7.5, argb(CG_SECOND))])
+
+    # Curved lines.
+    def curved(radius, start, end, direction, color, body):
+        d = int(round(2 * radius))
+        return f"""<PartText x="0" y="0" width="{SIZE}" height="{SIZE}">
+  <TextCircular centerX="{ifmt(CX)}" centerY="{ifmt(CY)}" width="{d}" height="{d}" startAngle="{start}" endAngle="{end}" direction="{direction}" align="CENTER">
+    <Font family="{mono.name}" size="{fmt(CG_TEXT)}" color="{argb(color)}">{body}</Font>
+  </TextCircular>
+</PartText>"""
+
+    def commit_line(word):
+        return curved(187, -55, 55, "CLOCKWISE", CG_GREY,
+                      template(f"main · %d {word} today", "floor([STEP_COUNT] / 1000)"))
+
+    branch = condition("one_commit", "floor([STEP_COUNT] / 1000) == 1", commit_line("commit"), commit_line("commits"))
+    summary = curved(186, 235, 125, "COUNTER_CLOCKWISE", CG_MUTED, template(
+        "%d%% of goal · %d.%d km", f"floor([STEP_COUNT] * 100 / {CG_GOAL})",
+        "floor([STEP_COUNT] * 0.000762)", "floor([STEP_COUNT] * 0.00762) % 10"))
+
+    # Prompt, time, date.
+    char = 0.6 * 15
+    px = CX - 17 * char / 2
+    prompt = [
+        text(px, 105, 10 * char + 4, 15, "ffffff", "user@watch", align="START", tint=ACCENT),
+        text(px + 10 * char, 105, 2 * char + 4, 15, CG_GREY, ":~", align="START"),
+        text(px + 12 * char, 105, 5 * char + 6, 15, CG_WHITE, "$ now", align="START"),
+    ]
+    clock = time_text(70, top_of(182.5, 77.5), 300, mono.line_h(77.5) + 2, "hh:mm", mono, 77.5, argb(CG_WHITE))
+    seconds = part_text(341, top_of(182.5, 20), 48, mono.line_h(20) + 2, mono, 20, argb("ffffff"),
+                        template(":%s", "[SECOND_Z]"), align="START", tint=ACCENT)
+    date = text(0, 212.5, SIZE, 16.25, CG_GREY,
+                template("%s, %s %s %s", "[DAY_OF_WEEK_S]", "[DAY]", "[MONTH_S]", "[YEAR]"))
+
+    # Badges.
+    badges = []
+    for key, label, color, x, y, lw, vw, _ in cg_badge_layout():
+        badges += [box(x, y, lw + vw, 22.5, 5, color),
+                   box(x, y, lw, 22.5, 5, CG_LABEL_BG),
+                   box(x + lw - 6, y, 6, 22.5, 0, CG_LABEL_BG),
+                   text(x, y + 16.25, lw, CG_TEXT, CG_LABEL, label)]
+
+        def value(body, x=x, y=y, lw=lw, vw=vw):
+            return text(x + lw - 2, y + 16.25, vw + 4, CG_TEXT, "ffffff", body)
+
+        if key == "battery":
+            badges.append(value(template("%d%%", "[BATTERY_PERCENT]")))
+        elif key == "steps":
+            badges.append(sw_choose("steps", sw_grouped("[STEP_COUNT]"),
+                                    lambda f, p, value=value: value(template(f, *p))))
+        elif key == "bpm":
+            badges.append(condition("has_hr", "[HEART_RATE] > 0",
+                                    value(template("%d", "round([HEART_RATE])")), value("--")))
+        else:
+            badges.append(condition(
+                "weather", "[WEATHER.IS_AVAILABLE]",
+                condition("fahrenheit", "[WEATHER.TEMPERATURE_UNIT] == 2",
+                          value(template("%d°F", "[WEATHER.TEMPERATURE]")),
+                          value(template("%d°C", "[WEATHER.TEMPERATURE]"))),
+                value("--")))
+
+    # Step goal grid.
+    cells = []
+    filled = f"floor([STEP_COUNT] * {CG_CELLS} / {CG_GOAL})"
+    for i, level in enumerate(cg_levels()):
+        x = CG_GRID_X + (i // CG_ROWS) * CG_STEP
+        y = CG_GRID_Y + (i % CG_ROWS) * CG_STEP
+        lit = escape(f"{filled} > {i} ? {CG_LEVELS[level]} : 0")
+        cells.append(box(x, y, CG_CELL, CG_CELL, 2, CG_CELL_BG))
+        cells.append(box(x, y, CG_CELL, CG_CELL, 2, "ffffff", tint=ACCENT, alpha=0,
+                         transform=f'\n  <Transform target="alpha" value="{lit}"/>'))
+    current = f"clamp({filled}, 0, {CG_CELLS - 1})"
+    cursor_x = f"{fmt(CG_GRID_X - 2)} + floor({current} / {CG_ROWS}) * {fmt(CG_STEP)}"
+    cursor_y = f"{fmt(CG_GRID_Y - 2)} + ({current} % {CG_ROWS}) * {fmt(CG_STEP)}"
+    cells.append(f"""<PartDraw x="{ifmt(CG_GRID_X - 2)}" y="{CG_GRID_Y - 2}" width="14" height="14">
+  <Transform target="x" value="{escape(cursor_x)}"/>
+  <Transform target="y" value="{escape(cursor_y)}"/>
+  <RoundRectangle x="2" y="2" width="{CG_CELL}" height="{CG_CELL}" cornerRadiusX="2" cornerRadiusY="2"><Stroke color="{argb(CG_WHITE)}" thickness="1.5"/></RoundRectangle>
+</PartDraw>""")
+
+    # Info icon: opens the watch app's guide to the readings.
+    half, mid = CG_INFO_TAP // 2, CG_INFO_TAP / 2
+    info = f"""<PartDraw x="{CG_INFO_X - half}" y="{CG_INFO_Y - half}" width="{CG_INFO_TAP}" height="{CG_INFO_TAP}">
+  <Launch target="{CG_GUIDE}"/>
+  <Ellipse x="{fmt(mid - 10)}" y="{fmt(mid - 10)}" width="20" height="20"><Stroke color="{argb(CG_GREY)}" thickness="2"/></Ellipse>
+  <Ellipse x="{fmt(mid - 1.6)}" y="{fmt(mid - 6.1)}" width="3.2" height="3.2"><Fill color="{argb(CG_GREY)}"/></Ellipse>
+  <RoundRectangle x="{fmt(mid - 1.25)}" y="{fmt(mid - 1.5)}" width="2.5" height="7.5" cornerRadiusX="1.25" cornerRadiusY="1.25"><Fill color="{argb(CG_GREY)}"/></RoundRectangle>
+</PartDraw>"""
+
+    scene = [
+        group("track", [track, *commits], ambient_alpha=0),
+        group("progress", [progress, head], ambient_alpha=110),
+        group("second", [second], ambient_alpha=0),
+        group("header", [branch, *prompt], ambient_alpha=0),
+        group("time", [clock], ambient_alpha=210),
+        group("seconds", [seconds], ambient_alpha=0),
+        group("date", [date], ambient_alpha=160),
+        group("badges", badges, ambient_alpha=0),
+        group("grid", cells, ambient_alpha=90),
+        group("summary", [summary], ambient_alpha=0),
+        group("info", [info], ambient_alpha=0),
+    ]
+    cg_preview_images(base, res)
+    write_module(face, "Commit Grid", CG_ACCENTS, scene, res, base)
+
+
+def cg_preview_images(base, res):
+    """Preview at 10:08:32 with 7,240 of 10,000 steps, one per accent."""
+    from PIL import ImageFont
+    ss = 3
+    path = os.path.join(res, "font", "jetbrainsmono_regular.ttf")
+    steps, goal, minute, second = 7240, 10000, 8, 32
+    for name, hex_ in CG_ACCENTS:
+        img = Image.new("RGBA", (SIZE * ss, SIZE * ss), "black")
+        dr = ImageDraw.Draw(img)
+        accent = "#" + hex_
+
+        def font(size):
+            return ImageFont.truetype(path, round(size * ss))
+
+        def words(x, y, s, size, color, anchor="ms"):
+            dr.text((x * ss, y * ss), s, font=font(size), fill=color, anchor=anchor)
+
+        def circle(x, y, d, color):
+            dr.ellipse([(x - d / 2) * ss, (y - d / 2) * ss, (x + d / 2) * ss, (y + d / 2) * ss], fill=color)
+
+        def ring(a1, w, color):
+            e = CG_R + w / 2
+            dr.arc([(CX - e) * ss, (CY - e) * ss, (CX + e) * ss, (CY + e) * ss], -90, a1 - 90,
+                   fill=color, width=round(w * ss))
+
+        def point(deg, r=CG_R):
+            return CX + r * math.sin(math.radians(deg)), CY - r * math.cos(math.radians(deg))
+
+        def curved(s, r, mid, color, bottom=False):
+            step = math.degrees(CG_CHAR / r) * (-1 if bottom else 1)
+            for i, ch in enumerate(s):
+                a = mid + (i - (len(s) - 1) / 2) * step
+                tile = Image.new("RGBA", (40 * ss, 40 * ss), (0, 0, 0, 0))
+                ImageDraw.Draw(tile).text((20 * ss, 20 * ss), ch, font=font(CG_TEXT), fill=color, anchor="mm")
+                tile = tile.rotate(-(a - 180 if bottom else a), resample=Image.BICUBIC)
+                x, y = point(a, r)
+                img.alpha_composite(tile, (round((x - 20) * ss), round((y - 20) * ss)))
+
+        ring(359.9, 2.5, "#" + CG_TRACK)
+        ring(minute * 6, 3.2, accent)
+        for i in range(12):
+            x, y = point(i * 30)
+            done = minute >= i * 5
+            circle(x, y, 13.75, accent if done else "#" + CG_DOT)
+            circle(x, y, 8.75, "black")
+            if done:
+                circle(x, y, 4, accent)
+        x, y = point(minute * 6)
+        for d, c in ((23, accent), (16.8, "black"), (8.75, accent)):
+            circle(x, y, d, c)
+        circle(*point(second * 6), 7.5, "#" + CG_SECOND)
+        curved(f"main · {steps // 1000} commits today", 187, 0, "#" + CG_GREY)
+        px = CX - 17 * 9 / 2
+        words(px, 105, "user@watch", 15, accent, "ls")
+        words(px + 90, 105, ":~", 15, "#" + CG_GREY, "ls")
+        words(px + 108, 105, "$ now", 15, "#" + CG_WHITE, "ls")
+        words(220, 182.5, f"10:{minute:02d}", 77.5, "#" + CG_WHITE)
+        words(341, 182.5, f":{second}", 20, accent, "ls")
+        words(CX, 212.5, "Thu, 26 Nov 2026", 16.25, "#" + CG_GREY)
+        for _, label, color, x, y, lw, vw, sample in cg_badge_layout():
+            dr.rounded_rectangle([x * ss, y * ss, (x + lw + vw) * ss, (y + 22.5) * ss], 5 * ss, fill="#" + color)
+            dr.rounded_rectangle([x * ss, y * ss, (x + lw) * ss, (y + 22.5) * ss], 5 * ss, fill="#" + CG_LABEL_BG,
+                                 corners=(True, False, False, True))
+            words(x + lw / 2, y + 16.25, label, CG_TEXT, "#" + CG_LABEL)
+            words(x + lw + vw / 2, y + 16.25, sample, CG_TEXT, "white")
+        filled = steps * CG_CELLS // goal
+        rgb = tuple(int(hex_[k:k + 2], 16) for k in (0, 2, 4))
+        bg = tuple(int(CG_CELL_BG[k:k + 2], 16) for k in (0, 2, 4))
+        for i, level in enumerate(cg_levels()):
+            x = CG_GRID_X + (i // CG_ROWS) * CG_STEP
+            y = CG_GRID_Y + (i % CG_ROWS) * CG_STEP
+            a = CG_LEVELS[level] / 255 if i < filled else 0
+            color = tuple(round(c * a + b * (1 - a)) for c, b in zip(rgb, bg))
+            dr.rounded_rectangle([x * ss, y * ss, (x + CG_CELL) * ss, (y + CG_CELL) * ss], 2 * ss, fill=color,
+                                 outline="#" + CG_WHITE if i == filled else None, width=round(1.5 * ss))
+        curved(f"{steps * 100 // goal}% of goal · 5.5 km", 186, 180, "#" + CG_MUTED, bottom=True)
+        ix, iy = CG_INFO_X, CG_INFO_Y
+        dr.ellipse([(ix - 11) * ss, (iy - 11) * ss, (ix + 11) * ss, (iy + 11) * ss],
+                   outline="#" + CG_GREY, width=2 * ss)
+        circle(ix, iy - 4.5, 3.2, "#" + CG_GREY)
+        dr.rounded_rectangle([(ix - 1.25) * ss, (iy - 1.5) * ss, (ix + 1.25) * ss, (iy + 6) * ss], 1.25 * ss,
+                             fill="#" + CG_GREY)
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, img.size[0] - 1, img.size[1] - 1], fill=255)
+        out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        out.paste(img, (0, 0), mask)
+        d = os.path.join(base, name, "res", "drawable-nodpi")
+        os.makedirs(d, exist_ok=True)
+        out.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(d, "preview.png"), optimize=True)
+
+
 # ---------------------------------------------------------------- module files
 
 def write_module(face, title, accents, scene, res, base, user_config=True, extra="", editable=True,
@@ -2003,3 +2313,4 @@ if __name__ == "__main__":
     shell_full()
     stack()
     terminal()
+    commit_grid()

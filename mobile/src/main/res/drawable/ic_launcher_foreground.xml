@@ -1,23 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Simple watch-face glyph: a ring with two hands. -->
+<!-- Watch glyph: straps, case, mint -> cyan ring, hands. Same design as play-store/icon-512.png
+     (tools/gen_store_assets.py). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <path android:fillColor="#262B36" android:pathData="M48,22h12a4,4 0,0 1,4 4v10h-20v-10a4,4 0,0 1,4 -4z" />
+    <path android:fillColor="#262B36" android:pathData="M44,72h20v10a4,4 0,0 1,-4 4h-12a4,4 0,0 1,-4 -4z" />
+    <path android:fillColor="#181B23" android:pathData="M54,30a24,24 0,1 1,0 48a24,24 0,1 1,0 -48z" />
     <path
-        android:pathData="M54,30a24,24 0,1 1,0 48a24,24 0,1 1,0 -48z"
-        android:strokeWidth="5"
-        android:strokeColor="#8AB4F8"
-        android:fillColor="#00000000" />
-    <path
-        android:pathData="M54,54 L54,38"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:strokeColor="#FFFFFF" />
-    <path
-        android:pathData="M54,54 L66,60"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:strokeColor="#FFFFFF" />
+        android:fillColor="#00000000"
+        android:strokeWidth="4.5"
+        android:pathData="M54,32.25a21.75,21.75 0,1 1,0 43.5a21.75,21.75 0,1 1,0 -43.5z">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="30"
+                android:startY="54"
+                android:endX="78"
+                android:endY="54"
+                android:startColor="#5EE6A8"
+                android:endColor="#57C7FF" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#8D95A7"
+        android:pathData="M54,35.4a1.6,1.6 0,1 1,0 3.2a1.6,1.6 0,1 1,0 -3.2zM71,52.4a1.6,1.6 0,1 1,0 3.2a1.6,1.6 0,1 1,0 -3.2zM54,69.4a1.6,1.6 0,1 1,0 3.2a1.6,1.6 0,1 1,0 -3.2zM37,52.4a1.6,1.6 0,1 1,0 3.2a1.6,1.6 0,1 1,0 -3.2z" />
+    <path android:pathData="M54,54 L54,41" android:strokeWidth="4.5" android:strokeLineCap="round" android:strokeColor="#F4F6FA" />
+    <path android:pathData="M54,54 L65,60" android:strokeWidth="4.5" android:strokeLineCap="round" android:strokeColor="#5EE6A8" />
+    <path android:fillColor="#FFC257" android:pathData="M54,51a3,3 0,1 1,0 6a3,3 0,1 1,0 -6z" />
 </vector>

@@ -1,0 +1,24 @@
+{
+  "package": "com.nightwise.watchwise",
+  "defaultLanguage": "en-US",
+  "contactEmail": "connectrahul25@gmail.com",
+  "contactWebsite": "https://iamrahul25.github.io/watch-wise-pages/",
+  "privacyPolicyUrl": "https://iamrahul25.github.io/watch-wise-pages/privacy-policy.html",
+  "category": "Personalization",
+  "listings": {
+    "en-US": {
+      "title": "Watch Wise: Watch Faces",
+      "shortDescription": "Bold watch faces for Wear OS. Pick on your phone, set on your watch in one tap.",
+      "fullDescription": "Watch Wise is a collection of bold, clean watch faces for your Wear OS watch, with a phone companion that makes choosing one easy.\n\n7 DESIGNS, 28 LOOKS\n• Mono Stack, Dot Matrix, Ember Forest, Shell Window, Shell Full, Stack and Terminal\n• Big stacked digits, retro dot-matrix, terminal-style status and more\nEvery design comes in four accent colours.\n\nUSEFUL AT A GLANCE\n• Time and date, battery, steps, heart rate and weather, depending on the design\n• Battery-friendly always-on (ambient) mode\n• Built with Google's Watch Face Format\n\nPICK ON YOUR PHONE\n• Browse every face in large previews on your phone\n• Choose an accent colour\n• Tap \"Set on watch\" and it becomes your watch face\n\nOR RIGHT ON YOUR WATCH\n• The watch app works on its own, no phone needed\n• Scroll the list, preview, pick an accent and set it\n\nPRIVATE BY DESIGN\n• No account, no ads, no tracking\n• Your watch shows health and battery data directly from the system; the app never collects it\n\nRequirements: setting a face from the app needs Wear OS 6 or newer. Install Watch Wise on your watch from the Play Store on your watch or from the phone app listing."
+    }
+  },
+  "releaseNotes": {
+    "en-US": "First release of Watch Wise: 7 watch face designs in 4 accent colours, with a phone companion to set them in one tap."
+  },
+  "images": {
+    "icon": "icon-512.png",
+    "featureGraphic": "feature-graphic.png",
+    "phoneScreenshots": "screenshots",
+    "wearScreenshots": "wear-screenshots"
+  }
+}

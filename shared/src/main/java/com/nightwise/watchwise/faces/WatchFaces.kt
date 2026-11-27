@@ -109,6 +109,17 @@ enum class WatchFace(
             accent("lime", 0xC6FF3D), accent("violet", 0xB69CFF),
         ),
         usesSensors = true,
+    ),
+    COMMIT_GRID(
+        id = "commit_grid",
+        pushName = "commitgrid",
+        title = "Commit Grid",
+        tagline = "Step grid",
+        accents = listOf(
+            accent("green", 0x39D353), accent("blue", 0x58A6FF),
+            accent("purple", 0xBC8CFF), accent("orange", 0xFF9E3D),
+        ),
+        usesSensors = true,
     );
 
     fun createPainter(assets: AssetManager): FacePainter = when (this) {
@@ -119,6 +130,7 @@ enum class WatchFace(
         SHELL_FULL -> ShellFullPainter(assets)
         STACK -> StackPainter(assets)
         TERMINAL -> TerminalPainter(assets)
+        COMMIT_GRID -> CommitGridPainter(assets)
     }
 
     /** Package name of the pushed watch face for an accent (must start with "<app>.watchfacepush."). */
