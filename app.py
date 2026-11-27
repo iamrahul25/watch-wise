@@ -28,6 +28,8 @@ import zipfile
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 PACKAGE = "com.nightwise.watchwise"
+# Last watch address entered for a Wi-Fi connect (this machine only, not committed).
+WATCH_ADDRESS_FILE = os.path.join(PROJECT_DIR, ".watch_address")
 LAUNCH_COMPONENT = f"{PACKAGE}/{PACKAGE}.MainActivity"
 IS_WINDOWS = os.name == "nt"
 GRADLEW = os.path.join(PROJECT_DIR, "gradlew.bat" if IS_WINDOWS else "gradlew")
@@ -52,6 +54,7 @@ WATCH_FACES = {
     "shellfull": ("Shell Full", ["blue", "green", "amber", "purple"]),
     "stack": ("Stack", ["violet", "cyan", "orange", "lime"]),
     "terminal": ("Terminal", ["orange", "cyan", "lime", "violet"]),
+    "commitgrid": ("Commit Grid", ["green", "blue", "purple", "orange"]),
 }
 
 
@@ -145,6 +148,58 @@ def ask_choice(items, label):
 
 def yes(prompt):
     return input(f"{prompt} [y/N]: ").strip().lower() in ("y", "yes")
+
+
+def input_prefilled(prompt, text):
+    """input() with `text` already typed on the line: Enter accepts it, or edit it first.
+
+    Where the line can't be pre-filled (e.g. Git Bash's terminal), `text` is shown in
+    brackets instead and a plain Enter accepts it.
+    """
+    if not text:
+        return input(prompt).strip()
+    if sys.stdin.isatty():
+        if IS_WINDOWS:
+            print(prompt, end="", flush=True)
+            if type_into_console(text):
+                return input().strip()
+            print()
+        else:
+            try:
+                import readline
+            except ImportError:
+                pass
+            else:
+                readline.set_startup_hook(lambda: readline.insert_text(text))
+                try:
+                    return input(prompt).strip()
+                finally:
+                    readline.set_startup_hook()
+    return input(f"{prompt}[{text}] ").strip() or text
+
+
+def type_into_console(text):
+    """Windows: queue `text` as key presses, so the next input() shows it as editable."""
+    import ctypes
+    from ctypes import wintypes
+
+    class KeyEvent(ctypes.Structure):
+        _fields_ = [("key_down", wintypes.BOOL), ("repeat", wintypes.WORD),
+                    ("key_code", wintypes.WORD), ("scan_code", wintypes.WORD),
+                    ("char", wintypes.WCHAR), ("modifiers", wintypes.DWORD)]
+
+    class InputRecord(ctypes.Structure):
+        _fields_ = [("event_type", wintypes.WORD), ("key", KeyEvent)]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.GetStdHandle.restype = wintypes.HANDLE
+    kernel32.WriteConsoleInputW.argtypes = [wintypes.HANDLE, ctypes.POINTER(InputRecord),
+                                            wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    records = (InputRecord * len(text))(*[InputRecord(1, KeyEvent(True, 1, 0, 0, ch, 0)) for ch in text])
+    written = wintypes.DWORD()
+    stdin = kernel32.GetStdHandle(-10)  # STD_INPUT_HANDLE
+    ok = kernel32.WriteConsoleInputW(stdin, records, len(records), ctypes.byref(written))
+    return bool(ok) and written.value == len(records)
 
 
 # ---------------------------------------------------------------- build / install
@@ -407,6 +462,23 @@ def run_on_watch():
         install_and_launch(serial)
 
 
+def load_watch_address():
+    """The IP:port entered at the last Wi-Fi connect, or ""."""
+    try:
+        with open(WATCH_ADDRESS_FILE, encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def save_watch_address(address):
+    try:
+        with open(WATCH_ADDRESS_FILE, "w", encoding="utf-8") as f:
+            f.write(address + "\n")
+    except OSError as e:
+        print(f"  (Could not remember the address: {e})")
+
+
 def connect_watch_wifi():
     adb = tool("adb")
     print("""
@@ -433,17 +505,25 @@ On the watch:
             return
     print("\nStep B - Connect.")
     print("  On the watch: the main 'Wireless debugging' screen shows 'IP address & port'.")
-    conn_addr = input("  Connect IP:port: ").strip()
+    last_addr = load_watch_address()
+    if last_addr:
+        print("  The last address is filled in. Press Enter to use it, or edit it first (the port often changes).")
+    conn_addr = input_prefilled("  Connect IP:port: ", last_addr)
     if not conn_addr:
         print("  Skipped.")
         return
     if ":" not in conn_addr:
         print("  That has no port. Use the 'IP address & port' from the main Wireless debugging screen.")
         return
+    # Remembered even if the connect fails: usually only the port needs editing next time.
+    save_watch_address(conn_addr)
     res = run([adb, "connect", conn_addr], check=False, capture=True, timeout=60)
     print("  " + (res.stdout + res.stderr).strip())
     if "connected to" in res.stdout:
         print("\nWatch connected. Use option 2 to run the app on it.")
+    else:
+        print("\n  Could not connect. On the watch, check 'Wireless debugging' is on and compare its")
+        print("  'IP address & port' (the port changes). If they match, pair again (step A).")
 
 
 # ---------------------------------------------------------------- uninstall

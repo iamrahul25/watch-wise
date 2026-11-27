@@ -122,6 +122,7 @@ val watchFaceModules = mapOf(
     "shellfull" to listOf("blue", "green", "amber", "purple"),
     "stack" to listOf("violet", "cyan", "orange", "lime"),
     "terminal" to listOf("orange", "cyan", "lime", "violet"),
+    "commitgrid" to listOf("green", "blue", "purple", "orange"),
 )
 
 val bundleWatchFaces = tasks.register<BundleWatchFacesTask>("bundleWatchFaces") {

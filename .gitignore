@@ -10,6 +10,7 @@ captures/
 
 # ---- Local machine config (never commit) ----
 local.properties
+.watch_address
 
 # ---- Signing keys & secrets (never commit) ----
 keystore.properties

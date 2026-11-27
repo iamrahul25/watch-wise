@@ -47,6 +47,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Opened by the info icon on the Commit Grid face, which the watch face runtime
+             starts from outside the app, so it must be exported. -->
+        <activity
+            android:name=".CommitGridGuideActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity="" />
+
         <!-- Requests from the phone companion (same package and signing key only). -->
         <service
             android:name=".link.PhoneRequestService"

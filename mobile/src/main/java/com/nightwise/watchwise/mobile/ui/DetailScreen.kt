@@ -71,6 +71,7 @@ private val WatchFace.about: String
         WatchFace.SHELL_FULL -> "The terminal, edge to edge, with text as large as it gets."
         WatchFace.STACK -> "Tall hours over bright minutes, with date and stats at a glance."
         WatchFace.TERMINAL -> "Solid and outlined digits beside a tidy column of readings."
+        WatchFace.COMMIT_GRID -> "A developer dashboard: your step goal fills a contribution-style grid."
     }
 
 private val WatchFace.readings: List<String>
@@ -82,6 +83,7 @@ private val WatchFace.readings: List<String>
             listOf("Next event", "Steps", "Heart rate", "Weather", "Battery")
         WatchFace.STACK -> listOf("Sunrise", "Next event", "Steps", "Heart rate", "Weather")
         WatchFace.TERMINAL -> listOf("Sunrise", "Next event", "Heart rate", "Weather", "Battery")
+        WatchFace.COMMIT_GRID -> listOf("Step goal grid", "Steps", "Heart rate", "Weather", "Battery")
     }
 
 /** Readable text on top of an accent colour. */
