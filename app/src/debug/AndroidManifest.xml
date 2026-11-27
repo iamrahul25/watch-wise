@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: the emulator bridge that lets the phone companion on a phone emulator
+     control this watch emulator without pairing them. Release builds contain none of this. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application>
+        <service
+            android:name=".debug.EmulatorBridgeService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Debug-only link to the phone emulator" />
+        </service>
+
+        <provider
+            android:name=".debug.EmulatorBridgeStarter"
+            android:authorities="${applicationId}.debug.bridge"
+            android:exported="false" />
+    </application>
+</manifest>

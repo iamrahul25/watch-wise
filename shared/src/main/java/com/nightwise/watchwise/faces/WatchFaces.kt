@@ -87,6 +87,28 @@ enum class WatchFace(
             accent("amber", 0xFEBC2E), accent("purple", 0xC792EA),
         ),
         usesSensors = true,
+    ),
+    STACK(
+        id = "stack",
+        pushName = "stack",
+        title = "Stack",
+        tagline = "At a glance",
+        accents = listOf(
+            accent("violet", 0xB79CFF), accent("cyan", 0x4FD1FF),
+            accent("orange", 0xFF6B2C), accent("lime", 0xB6F35B),
+        ),
+        usesSensors = true,
+    ),
+    TERMINAL(
+        id = "terminal",
+        pushName = "terminal",
+        title = "Terminal",
+        tagline = "Data column",
+        accents = listOf(
+            accent("orange", 0xFF8A3D), accent("cyan", 0x3DE0FF),
+            accent("lime", 0xC6FF3D), accent("violet", 0xB69CFF),
+        ),
+        usesSensors = true,
     );
 
     fun createPainter(assets: AssetManager): FacePainter = when (this) {
@@ -95,6 +117,8 @@ enum class WatchFace(
         EMBER_FOREST -> EmberForestPainter()
         SHELL_WINDOW -> ShellWindowPainter(assets)
         SHELL_FULL -> ShellFullPainter(assets)
+        STACK -> StackPainter(assets)
+        TERMINAL -> TerminalPainter(assets)
     }
 
     /** Package name of the pushed watch face for an accent (must start with "<app>.watchfacepush."). */

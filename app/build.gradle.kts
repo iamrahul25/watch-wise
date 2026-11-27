@@ -16,8 +16,10 @@ android {
         applicationId = "com.nightwise.watchwise"
         minSdk = 30 // Wear OS 3+ (pushing watch faces needs Wear OS 6+, checked at runtime)
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        // Same applicationId and signing key as the phone app (:mobile), published on one Play
+        // listing. Each build needs its own version code: watch = 2xxxxxx, phone = 1xxxxxx.
+        versionCode = 2_000_002
+        versionName = "1.1"
     }
 
     buildTypes {
@@ -43,6 +45,7 @@ val watchFaceValidator: Configuration = configurations.create("watchFaceValidato
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -50,6 +53,7 @@ dependencies {
     implementation(libs.wear.compose.foundation)
     implementation(libs.wear.compose.navigation)
     implementation(libs.wear.watchfacepush)
+    implementation(libs.play.services.wearable)
     watchFaceValidator(libs.watchface.validator.cli)
 }
 
@@ -116,6 +120,8 @@ val watchFaceModules = mapOf(
     "emberforest" to listOf("orange", "cyan", "violet", "green"),
     "shellwindow" to listOf("blue", "green", "amber", "purple"),
     "shellfull" to listOf("blue", "green", "amber", "purple"),
+    "stack" to listOf("violet", "cyan", "orange", "lime"),
+    "terminal" to listOf("orange", "cyan", "lime", "violet"),
 )
 
 val bundleWatchFaces = tasks.register<BundleWatchFacesTask>("bundleWatchFaces") {

@@ -10,6 +10,7 @@ Menu:
   7. Regenerate the watch face sources (tools/gen_watchfaces.py).
   8. Show connected devices.
   9. Uninstall the app and its watch faces from a watch.
+ 10. Build and run the phone companion with the watch (phone emulator or real phone).
   0. Exit.
 """
 
@@ -31,6 +32,9 @@ LAUNCH_COMPONENT = f"{PACKAGE}/{PACKAGE}.MainActivity"
 IS_WINDOWS = os.name == "nt"
 GRADLEW = os.path.join(PROJECT_DIR, "gradlew.bat" if IS_WINDOWS else "gradlew")
 DEBUG_APK = os.path.join(PROJECT_DIR, "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+PHONE_APK = os.path.join(PROJECT_DIR, "mobile", "build", "outputs", "apk", "debug", "mobile-debug.apk")
+PHONE_COMPONENT = f"{PACKAGE}/{PACKAGE}.mobile.MainActivity"
+BRIDGE_PORT = "tcp:8765"  # debug-only emulator link, WatchLink.DEBUG_BRIDGE_PORT
 EMULATOR_BOOT_TIMEOUT = 420  # seconds; a first cold boot of a new AVD is slow
 
 SDK_REPO_URL = "https://dl.google.com/android/repository/"
@@ -46,6 +50,8 @@ WATCH_FACES = {
     "emberforest": ("Ember Forest", ["orange", "cyan", "violet", "green"]),
     "shellwindow": ("Shell Window", ["blue", "green", "amber", "purple"]),
     "shellfull": ("Shell Full", ["blue", "green", "amber", "purple"]),
+    "stack": ("Stack", ["violet", "cyan", "orange", "lime"]),
+    "terminal": ("Terminal", ["orange", "cyan", "lime", "violet"]),
 }
 
 
@@ -273,7 +279,7 @@ def start_emulator(avd):
     flags = {"creationflags": subprocess.DETACHED_PROCESS} if IS_WINDOWS else {"start_new_session": True}
     subprocess.Popen([tool("emulator"), "-avd", avd], cwd=PROJECT_DIR,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **flags)
-    print("[emulator] Waiting for the watch to appear ...")
+    print("[emulator] Waiting for the device to appear ...")
     deadline = time.time() + EMULATOR_BOOT_TIMEOUT
     serial = None
     while time.time() < deadline and not serial:
@@ -320,6 +326,65 @@ def run_on_emulator():
         return
     if build_debug_apk():
         install_and_launch(serial)
+
+
+# ---------------------------------------------------------------- phone companion
+
+def pick_phone():
+    """A connected phone (real or emulator), starting a phone emulator if there is none."""
+    phones = [d for d in connected_devices() if not is_watch(d)]
+    if phones:
+        return ask_choice(phones, "phone")
+    avds = [a for a in list_avds() if not is_wear_avd(a)]
+    if not avds:
+        print("\nNo phone found. Create a phone emulator in Android Studio > Device Manager, or connect a phone.")
+        return None
+    avd = ask_choice(avds, "phone emulator")
+    return start_emulator(avd) if avd else None
+
+
+def pick_watch_emulator():
+    running = running_watch_emulators()
+    if running:
+        return ask_choice(running, "running watch emulator")
+    avds = [a for a in list_avds() if is_wear_avd(a)]
+    if not avds:
+        print("\nNo Wear OS emulator. Use option 4 first.")
+        return None
+    avd = ask_choice(avds, "watch emulator")
+    return start_emulator(avd) if avd else None
+
+
+def run_companion():
+    """Install the phone app; for emulators also run the watch app and link the two."""
+    phone = pick_phone()
+    if not phone:
+        return
+    emulated = phone.startswith("emulator-")
+    watch = pick_watch_emulator() if emulated else None
+    if emulated and not watch:
+        return
+    tasks = [":mobile:assembleDebug"] + ([":app:assembleDebug"] if watch else [])
+    print(f"\n[build] {' '.join(tasks)} ...")
+    try:
+        run(tool_cmd(GRADLEW, *tasks))
+    except subprocess.CalledProcessError:
+        print("[build] FAILED.")
+        return
+    adb = tool("adb")
+    if watch:
+        # Unpaired emulators talk through this computer: phone -> computer -> watch.
+        run([adb, "-s", watch, "forward", BRIDGE_PORT, BRIDGE_PORT])
+        run([adb, "-s", phone, "reverse", BRIDGE_PORT, BRIDGE_PORT])
+        install_and_launch(watch)
+    print(f"[install] Installing the phone app on {phone} ...")
+    run([adb, "-s", phone, "install", "-r", PHONE_APK])
+    run([adb, "-s", phone, "shell", "am", "start", "-n", PHONE_COMPONENT], capture=True)
+    if watch:
+        print("[done] Watch Wise is open on both. Pick a face on the phone and tap 'Set on watch'.")
+        print("       (Run this option again after restarting an emulator or force-stopping the watch app.)")
+    else:
+        print("[done] Open on the phone. It controls a paired watch that has Watch Wise installed (option 2).")
 
 
 # ---------------------------------------------------------------- real watch
@@ -613,6 +678,7 @@ def menu():
     print(" 7. Regenerate watch face sources")
     print(" 8. Show connected devices")
     print(" 9. Uninstall app + watch faces from a watch")
+    print("10. Run phone companion + watch")
     print(" 0. Exit")
     return input("Select an option: ").strip()
 
@@ -627,6 +693,7 @@ ACTIONS = {
     "7": regenerate_faces,
     "8": show_devices,
     "9": uninstall_app,
+    "10": run_companion,
 }
 
 

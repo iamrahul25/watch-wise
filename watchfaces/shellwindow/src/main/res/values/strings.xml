@@ -7,4 +7,5 @@
     <string name="accent_green">Green</string>
     <string name="accent_amber">Amber</string>
     <string name="accent_purple">Purple</string>
+    <string name="next_label">Next event</string>
 </resources>

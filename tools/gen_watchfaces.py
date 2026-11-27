@@ -2,7 +2,7 @@
 
 Writes, for each face module under watchfaces/<face>/src:
   main/res/font/*.ttf             static font weights cut from the variable fonts in
-                                  app/src/main/assets/fonts (WFF has no variable-axis support)
+                                  shared/src/main/assets/fonts (WFF has no variable-axis support)
   main/res/drawable-nodpi/*.png   icons / dot grid images
   main/res/values/strings.xml     labels for the face and its accent options
   main/res/xml/watch_face_info.xml
@@ -18,6 +18,7 @@ Needs: fonttools, pillow  (pip install fonttools pillow)
 Run:   python tools/gen_watchfaces.py
 """
 
+import io
 import math
 import os
 import re
@@ -29,7 +30,7 @@ from fontTools.varLib import instancer
 from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONT_SRC = os.path.join(ROOT, "app", "src", "main", "assets", "fonts")
+FONT_SRC = os.path.join(ROOT, "shared", "src", "main", "assets", "fonts")
 SIZE = 450
 CX = CY = SIZE / 2
 
@@ -57,8 +58,9 @@ def ifmt(v):
 class Font:
     """A static font instance written to res/font, plus its metrics for layout."""
 
-    def __init__(self, src, out_dir, name, axes, extra_chars=""):
-        """axes: variable-font axis values, or None for a static font."""
+    def __init__(self, src, out_dir, name, axes, extra_chars="", digits=None):
+        """axes: variable-font axis values, or None for a static font.
+        digits: (x_scale, advance) to give 0-9 one advance width, condensed by x_scale."""
         self.name = name
         self.src = os.path.join(FONT_SRC, src)
         path = os.path.join(out_dir, name + ".ttf")
@@ -71,6 +73,8 @@ class Font:
         sub = subset.Subsetter(opts)
         sub.populate(text=CHARSET + extra_chars)
         sub.subset(tt)
+        if digits:
+            equal_digits(tt, *digits)
         os.makedirs(out_dir, exist_ok=True)
         tt.save(path)
         self.upm = tt["head"].unitsPerEm
@@ -88,14 +92,30 @@ class Font:
         return adv / self.upm * size + letter_spacing * size * len(text)
 
 
+def equal_digits(tt, x_scale, advance):
+    """Scale the digit outlines horizontally and centre each in the same advance width."""
+    glyf, cmap = tt["glyf"], tt.getBestCmap()
+    for ch in "0123456789":
+        name = cmap[ord(ch)]
+        g = glyf[name]
+        g.expand(glyf)
+        g.coordinates.scale((x_scale, 1))
+        g.recalcBounds(glyf)
+        g.coordinates.translate((round((advance - g.xMin - g.xMax) / 2), 0))
+        g.coordinates.toInt()
+        g.recalcBounds(glyf)
+        tt["hmtx"][name] = (advance, g.xMin)
+
+
 # ---------------------------------------------------------------- images
 
 def svg_polylines(d):
-    """Tiny SVG path parser (M/L/H/V/C/Z, absolute + relative) -> list of point lists."""
-    tokens = re.findall(r"[MLHVCZmlhvcz]|-?\d*\.?\d+", d)
+    """Tiny SVG path parser (M/L/H/V/C/S/A/Z, absolute + relative) -> list of point lists."""
+    tokens = re.findall(r"[MLHVCSAZmlhvcsaz]|-?\d*\.?\d+", d)
     lines, cur, start = [], [], (0.0, 0.0)
     x = y = 0.0
     cmd = None
+    ctrl2 = None  # second control point of the previous C/S segment
     i = 0
 
     def num():
@@ -136,10 +156,18 @@ def svg_polylines(d):
             ny = num()
             y = y + ny if rel else ny
             cur.append((x, y))
-        elif c == "C":
-            pts = [num() for _ in range(6)]
+        elif c == "A":
+            rx, ry, rot, large, sweep, nx, ny = (num() for _ in range(7))
+            nx, ny = (x + nx, y + ny) if rel else (nx, ny)
+            cur.extend(svg_arc(x, y, rx, ry, rot, large, sweep, nx, ny))
+            x, y = nx, ny
+        elif c in "CS":
+            pts = [num() for _ in range(6 if c == "C" else 4)]
             if rel:
-                pts = [pts[k] + (x if k % 2 == 0 else y) for k in range(6)]
+                pts = [pts[k] + (x if k % 2 == 0 else y) for k in range(len(pts))]
+            if c == "S":  # first control point mirrors the previous one
+                mirrored = (2 * x - ctrl2[0], 2 * y - ctrl2[1]) if ctrl2 else (x, y)
+                pts = [*mirrored, *pts]
             x0, y0 = x, y
             x1, y1, x2, y2, x3, y3 = pts
             for s in range(1, 17):
@@ -150,9 +178,36 @@ def svg_polylines(d):
                     mt ** 3 * y0 + 3 * mt * mt * t_ * y1 + 3 * mt * t_ * t_ * y2 + t_ ** 3 * y3,
                 ))
             x, y = x3, y3
+        ctrl2 = (x2, y2) if c in "CS" else None
     if cur:
         lines.append(cur)
     return lines
+
+
+def svg_arc(x0, y0, rx, ry, rot, large, sweep, x1, y1, steps=24):
+    """Points along an SVG arc (endpoint form), excluding the start point."""
+    phi = math.radians(rot)
+    cp, sp = math.cos(phi), math.sin(phi)
+    dx, dy = (x0 - x1) / 2, (y0 - y1) / 2
+    px, py = cp * dx + sp * dy, -sp * dx + cp * dy
+    grow = max(1.0, math.sqrt((px / rx) ** 2 + (py / ry) ** 2))
+    rx, ry = rx * grow, ry * grow
+    den = (rx * py) ** 2 + (ry * px) ** 2
+    f = math.sqrt(max(0.0, (rx * ry) ** 2 - den) / den) * (-1 if large == sweep else 1)
+    qx, qy = f * rx * py / ry, -f * ry * px / rx
+    cx, cy = cp * qx - sp * qy + (x0 + x1) / 2, sp * qx + cp * qy + (y0 + y1) / 2
+    a0 = math.atan2((py - qy) / ry, (px - qx) / rx)
+    da = math.atan2((-py - qy) / ry, (-px - qx) / rx) - a0
+    if sweep and da < 0:
+        da += 2 * math.pi
+    elif not sweep and da > 0:
+        da -= 2 * math.pi
+    out = []
+    for s in range(1, steps + 1):
+        a = a0 + da * s / steps
+        out.append((cx + rx * math.cos(a) * cp - ry * math.sin(a) * sp,
+                    cy + rx * math.cos(a) * sp + ry * math.sin(a) * cp))
+    return out
 
 
 def icon_png(path, paths, circles=(), out=64):
@@ -1342,6 +1397,565 @@ def shell_full():
     write_module(face, "Shell Full", SW_ACCENTS, scene, res, base, strings={"next_label": "Next event"})
 
 
+# ---------------------------------------------------------------- Stack
+#
+# "04 · Stack" from the "AMOLED Watch Faces — 4 Designs" canvas: condensed hours over
+# accent minutes on the left, a column of date and stats on the right, a seconds ring, a
+# sunrise / sunset line on top and a notification pill at the bottom. Drawn on a 480 x 480
+# artboard, so everything is scaled by ST_K.
+# Differences from the design: Space Grotesk stands in for Anton and Inter (the time is a
+# horizontally condensed cut of it). WFF has no sunrise data, so the top line is a
+# complication slot (system sunrise / sunset provider, which shows only the next of the two).
+# The pill has a fixed width, and its event is a second complication slot.
+
+ST_K = SIZE / 480
+ST_TIME = 194.3  # digit font size: 136 px tall digits
+ST_DIGIT_SCALE, ST_DIGIT_ADV = 0.70, 440  # condensing, advance (font units)
+ST_TIME_CX = 177
+ST_BASELINES = (230, 378)  # hours, minutes
+ST_COL_X = 276
+ST_WHITE, ST_GREY = "f2f2f2", "9a9a9a"
+ST_ACCENTS = [("violet", "B79CFF"), ("cyan", "4FD1FF"), ("orange", "FF6B2C"), ("lime", "B6F35B")]
+
+ST_ICONS = {  # 24 x 24 line icons: (paths, circles, colour or None for the accent)
+    "sun": (["M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"],
+            [(12, 12, 5)], "FFC24D"),
+    "heart": (["M12 20s-7-4.4-9.2-8.7A5.2 5.2 0 0 1 12 6.4a5.2 5.2 0 0 1 9.2 4.9C19 15.6 12 20 12 20z"],
+              [], "FF4D6D"),
+    "steps": (["M5 16c0-3 .8-7 2.8-7S10 12 10 14s-1 4-2.5 4S5 17 5 16z"
+               "M14 10c0-3 .8-7 2.8-7S19 6 19 8s-1 4-2.5 4S14 11 14 10z"], [], None),
+    "battery": (["M4 7H17C18.1 7 19 7.9 19 9V15C19 16.1 18.1 17 17 17H4C2.9 17 2 16.1 2 15V9C2 7.9 2.9 7 4 7Z"
+                 "M22 11v2M5 10v4M8 10v4M11 10v4"], [], "B6F35B"),
+    "bell": (["M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"], [], None),
+}
+
+
+def stack():
+    face = "stack"
+    base = os.path.join(ROOT, "watchfaces", face, "src")
+    res = os.path.join(base, "main", "res")
+    fdir = os.path.join(res, "font")
+    drawables = os.path.join(res, "drawable-nodpi")
+    os.makedirs(drawables, exist_ok=True)
+    src = "spacegrotesk.ttf"
+    digits = (ST_DIGIT_SCALE, ST_DIGIT_ADV)
+    time_bold = Font(src, fdir, "stack_digits_bold", {"wght": 700}, digits=digits)
+    time_light = Font(src, fdir, "stack_digits_light", {"wght": 300}, digits=digits)
+    medium = Font(src, fdir, "spacegrotesk_medium", {"wght": 500})
+    semi = Font(src, fdir, "spacegrotesk_semibold", {"wght": 600})
+    bold = Font(src, fdir, "spacegrotesk_bold", {"wght": 700}, digits=(1, 620))
+    k = ST_K
+    preview = []  # draw ops in design px, for the preview image
+    for name, (paths, circles, _) in ST_ICONS.items():
+        icon_png(os.path.join(drawables, f"icon_{name}.png"), paths, circles)
+
+    def text(x, top, box, w, font, size, color, body, sample="", align="START", ls=0, tint=None):
+        """PartText for a CSS line box (x, top, w x box) in design px; ls in design px.
+        A non-empty sample also goes into the preview image."""
+        content = (font.asc + font.desc + font.gap) / font.upm * size
+        y = top + (box - content) / 2
+        if sample:
+            preview.append(("text", x, y + font.asc / font.upm * size, w, font, size,
+                            "ACCENT" if tint else color, sample, align, ls))
+        return part_text(x * k, y * k, w * k, font.line_h(size) * k + 1, font, size * k, argb(color), body,
+                         align=align, letter_spacing=ls / size, tint=tint)
+
+    def icon(name, x, cy, d):
+        color = ST_ICONS[name][2]
+        preview.append(("icon", name, x, cy - d / 2, d, color))
+        tint = argb(color) if color else ACCENT
+        return f"""<PartImage x="{ifmt(x * k)}" y="{ifmt((cy - d / 2) * k)}" width="{ifmt(d * k)}" height="{ifmt(d * k)}" tintColor="{tint}">
+  <Image resource="icon_{name}"/>
+</PartImage>"""
+
+    # Seconds ring: dim track plus an accent arc from 12 o'clock.
+    r, sw = 234 * k, 4 * k
+    arc = f'centerX="{fmt(CX)}" centerY="{fmt(CY)}" width="{fmt(2 * r)}" height="{fmt(2 * r)}" startAngle="0"'
+    ring = [f"""<PartDraw x="0" y="0" width="{SIZE}" height="{SIZE}">
+  <Arc {arc} endAngle="360" direction="CLOCKWISE"><Stroke color="#ff161616" thickness="{fmt(sw)}"/></Arc>
+</PartDraw>""", f"""<PartDraw x="0" y="0" width="{SIZE}" height="{SIZE}" tintColor="{ACCENT}">
+  <Arc {arc} endAngle="1.2" direction="CLOCKWISE">
+    <Transform target="endAngle" value="clamp([SECOND], 0.2, 60) * 6"/>
+    <Stroke color="#ffffffff" thickness="{fmt(sw)}" cap="ROUND"/>
+  </Arc>
+</PartDraw>"""]
+    preview.append(("ring", 234, 4, 32))
+
+    # Time.
+    tw = 2 * ST_DIGIT_ADV / 1000 * ST_TIME + 24
+
+    def digits_part(which, font, color, tint=None, alpha=255, ambient_alpha=None):
+        baseline = ST_BASELINES[0 if which == "hh" else 1]
+        top = baseline - font.asc / font.upm * ST_TIME
+        return time_text((ST_TIME_CX - tw / 2) * k, top * k, tw * k, font.line_h(ST_TIME) * k + 1, which, font,
+                         ST_TIME * k, color, tint=tint, alpha=alpha, ambient_alpha=ambient_alpha)
+
+    time_on = [digits_part("hh", time_bold, argb(ST_WHITE), ambient_alpha=0),
+               digits_part("mm", time_bold, "#ffffffff", tint=ACCENT, ambient_alpha=0)]
+    time_amb = [digits_part("hh", time_light, argb("d0d0d0"), alpha=0, ambient_alpha=255),
+                digits_part("mm", time_light, argb("7a7a7a"), alpha=0, ambient_alpha=255)]
+    for baseline, sample, color in zip(ST_BASELINES, ("10", "08"), (ST_WHITE, "ACCENT")):
+        preview.append(("text", ST_TIME_CX - tw / 2, baseline, tw, time_bold, ST_TIME, color, sample, "CENTER", 0))
+
+    # Date block.
+    date = [
+        text(ST_COL_X, 112, 15, 170, semi, 12, ST_GREY,
+             "<Upper>" + template("%s", "[DAY_OF_WEEK_F]") + "</Upper>", "THURSDAY", ls=3),
+        text(ST_COL_X, 127, 27, 170, bold, 22, ST_WHITE, template("%s %s", "[DAY]", "[MONTH_S]"), "26 Nov"),
+    ]
+    divider = rect(ST_COL_X * k, 167 * k, 100 * k, 1, argb("262626"))
+    preview.append(("box", ST_COL_X, 167, 100, 1, "262626"))
+
+    # Stats column: icon (20) + gap 8 + text.
+    tx = ST_COL_X + 28
+
+    def value(top, body, sample="", box=22):
+        return text(tx, top, box, 140, bold, 18, ST_WHITE, body, sample)
+
+    def sky(body, sample=""):
+        return text(tx, 203, 13, 146, medium, 11, ST_GREY, body, sample)
+
+    # Preview samples are added on their own, so the XML branches below add none.
+    preview.append(("text", tx, 198.5, 140, bold, 18, ST_WHITE, "24°", "START", 0))
+    preview.append(("text", tx, 213.5, 146, medium, 11, ST_GREY, "Haze · UV 3", "START", 0))
+    weather = condition(
+        "weather", "[WEATHER.IS_AVAILABLE]",
+        "\n".join([value(182, template("%d°", "[WEATHER.TEMPERATURE]"), box=21),
+                   sky(template("%s · UV %d", "[WEATHER.CONDITION_NAME]", "[WEATHER.UV_INDEX]"))]),
+        "\n".join([value(182, "--°", box=21), sky("No weather")]))
+
+    def hr_case(body, n_digits):
+        """Heart rate followed by a small BPM, placed after n_digits equal-width digits."""
+        x = tx + n_digits * 0.62 * 18 + 5
+        return "\n".join([value(229.5, body), text(x, 235, 14, 50, medium, 11, ST_GREY, "BPM")])
+
+    preview.append(("text", tx, 246.5, 60, bold, 18, ST_WHITE, "72", "START", 0))
+    preview.append(("text", tx + 2 * 0.62 * 18 + 5, 245.5, 50, medium, 11, ST_GREY, "BPM", "START", 0))
+    bpm = template("%d", "round([HEART_RATE])")
+    heart = condition("has_hr", "[HEART_RATE] > 0",
+                      condition("hr3", "[HEART_RATE] >= 99.5", hr_case(bpm, 3), hr_case(bpm, 2)),
+                      hr_case("--", 2))
+
+    preview.append(("text", tx, 282.5, 140, bold, 18, ST_WHITE, "7,842", "START", 0))
+    steps = sw_choose("st_steps", sw_grouped("[STEP_COUNT]"), lambda f, p: value(265.5, template(f, *p)))
+    battery = value(301, template("%d%%", "[BATTERY_PERCENT]"), "68%")
+
+    stats = [icon("sun", ST_COL_X, 199, 20), weather, icon("heart", ST_COL_X, 240.5, 20), heart,
+             icon("steps", ST_COL_X, 276.5, 20), steps, icon("battery", ST_COL_X, 312, 20), battery]
+
+    def slot(slot_id, x, y, w, h, label, provider, kind, types, body):
+        """Complication slot in design px; body(type, width, height) draws each type."""
+        sx, sy, sw_, sh = (int(round(v * k)) for v in (x, y, w, h))
+        parts = "\n".join(f'  <Complication type="{t}">\n{indent(body(t, sw_, sh), 4)}\n  </Complication>'
+                          for t in types.split())
+        return f"""<ComplicationSlot slotId="{slot_id}" x="{sx}" y="{sy}" width="{sw_}" height="{sh}" displayName="{label}"
+    supportedTypes="{types}" isCustomizable="TRUE">
+  <Variant mode="AMBIENT" target="alpha" value="0"/>
+  <DefaultProviderPolicy defaultSystemProvider="{provider}" defaultSystemProviderType="{kind}"/>
+  <BoundingBox x="0" y="0" width="{sw_}" height="{sh}"/>
+{parts}
+</ComplicationSlot>"""
+
+    # Sunrise / sunset: the provider's icon (which tells them apart) and time, at the top.
+    def sun_body(kind, w, h):
+        def line(body, color=ST_WHITE):
+            return part_text(w / 2 - 40, 0, w / 2 + 40, h, medium, 13 * k, argb(color), body, align="START",
+                             letter_spacing=1.5 / 13)
+
+        def image(resource):
+            d = int(round(16 * k))
+            return f"""<PartImage x="{int(w / 2) - 40 - d - 6}" y="{(h - d) // 2}" width="{d}" height="{d}" tintColor="#ffffc24d">
+  <Image resource="{resource}"/>
+</PartImage>"""
+        if kind == "EMPTY":
+            return "\n".join([image("icon_sun"), line("--:--", ST_GREY)])
+        return "\n".join([image("[COMPLICATION.MONOCHROMATIC_IMAGE]"), line(template("%s", "[COMPLICATION.TEXT]"))])
+
+    sun = slot(0, 120, 53, 240, 19, "sun_label", "SUNRISE_SUNSET", "SHORT_TEXT", "SHORT_TEXT EMPTY", sun_body)
+    preview.extend([("icon", "sun", 190, 54.5, 16, "FFC24D"),
+                    ("text", 214, 66.5, 120, medium, 13, ST_WHITE, "06:28", "START", 1.5)])
+
+    # Notification pill: bell, unread count, dot, next event.
+    px, py, pw, ph = 138, 396, 204, 28
+    to_sw = k / SW_K  # round_rect takes Shell Window design px
+    pill = [round_rect(px * to_sw, py * to_sw, pw * to_sw, ph * to_sw, ph / 2 * to_sw, stroke=argb("2a2a2a")),
+            icon("bell", px + 13, py + ph / 2, 14),
+            text(px + 31, py + 6, 16, 22, medium, 12, "ffffff",
+                 template("%d", "clamp([UNREAD_NOTIFICATION_COUNT], 0, 99)"), "3", align="CENTER", tint=ACCENT),
+            dot((px + 59) * k, (py + ph / 2) * k, 2.5 * k, argb(ST_GREY))]
+    preview.extend([("pill", px, py, pw, ph, "2a2a2a"), ("dot", px + 59, py + ph / 2, 2.5, ST_GREY)])
+    ex, ew = px + 66, pw - 78
+
+    def event_body(kind, w, h):
+        def line(body):
+            return part_text(0, 0, w, h, medium, 12 * k, argb(ST_WHITE), body, align="START")
+        if kind == "LONG_TEXT":
+            return line(template("%s %s", "[COMPLICATION.TITLE]", "[COMPLICATION.TEXT]"))
+        return line(template("%s", "[COMPLICATION.TEXT]") if kind == "SHORT_TEXT" else "No events")
+
+    event = slot(1, ex, py + 6.5, ew, 16, "next_label", "NEXT_EVENT", "LONG_TEXT",
+                 "LONG_TEXT SHORT_TEXT EMPTY", event_body)
+    preview.append(("text", ex, py + 18.5, ew, medium, 12, ST_WHITE, "21:00 Standup", "START", 0))
+
+    scene = [
+        group("seconds_ring", ring, ambient_alpha=0),
+        *time_on, *time_amb,
+        group("date", date, ambient_alpha=160),
+        group("stats", [divider, *stats], ambient_alpha=0),
+        group("pill", pill, ambient_alpha=0),
+        sun, event,
+    ]
+    st_preview_images(base, res, preview)
+    write_module(face, "Stack", ST_ACCENTS, scene, res, base,
+                 strings={"sun_label": "Sunrise / sunset", "next_label": "Next event"})
+
+
+def st_preview_images(base, res, ops):
+    """Preview at 10:08:32 with sample data, one per accent, from the same layout as the XML."""
+    from PIL import ImageFont
+    ss = 3
+    k = ST_K * ss
+    for name, hex_ in ST_ACCENTS:
+        img = Image.new("RGBA", (SIZE * ss, SIZE * ss), (0, 0, 0, 255))
+        dr = ImageDraw.Draw(img)
+
+        def colour(c):
+            return "#" + (hex_ if c in ("ACCENT", None) else c)
+
+        for op in ops:
+            kind = op[0]
+            if kind == "ring":
+                _, r, w, second = op
+                edge = r + w / 2
+                box = [(240 - edge) * k, (240 - edge) * k, (240 + edge) * k, (240 + edge) * k]
+                dr.arc(box, 0, 360, fill="#161616", width=round(w * k))
+                dr.arc(box, -90, -90 + second * 6, fill=colour(None), width=round(w * k))
+            elif kind == "box":
+                _, x, y, w, h, c = op
+                dr.rectangle([x * k, y * k, (x + w) * k - 1, (y + h) * k - 1], fill="#" + c)
+            elif kind == "pill":
+                _, x, y, w, h, c = op
+                dr.rounded_rectangle([x * k, y * k, (x + w) * k, (y + h) * k], h / 2 * k, outline="#" + c, width=ss)
+            elif kind == "dot":
+                _, x, y, d, c = op
+                dr.ellipse([(x - d / 2) * k, (y - d / 2) * k, (x + d / 2) * k, (y + d / 2) * k], fill="#" + c)
+            elif kind == "icon":
+                _, icon_name, x, y, d, c = op
+                size = round(d * k)
+                alpha = Image.open(os.path.join(res, "drawable-nodpi", f"icon_{icon_name}.png")).getchannel("A")
+                img.paste(colour(c), (round(x * k), round(y * k)), alpha.resize((size, size), Image.LANCZOS))
+            elif kind == "text":
+                _, x, b, w, font, size, c, sample, align, ls = op
+                pil = ImageFont.truetype(os.path.join(res, "font", font.name + ".ttf"), round(size * k))
+                total = sum(pil.getlength(ch) for ch in sample) + ls * k * len(sample)
+                cx = x * k + {"START": 0, "CENTER": (w * k - total) / 2, "END": w * k - total}[align]
+                for ch in sample:
+                    dr.text((cx, b * k), ch, font=pil, fill=colour(c), anchor="ls")
+                    cx += pil.getlength(ch) + ls * k
+        # Round screen, then downsample.
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, img.size[0] - 1, img.size[1] - 1], fill=255)
+        out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        out.paste(img, (0, 0), mask)
+        d = os.path.join(base, name, "res", "drawable-nodpi")
+        os.makedirs(d, exist_ok=True)
+        out.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(d, "preview.png"), optimize=True)
+
+
+# ---------------------------------------------------------------- Terminal
+#
+# "04 · Terminal" from the "AMOLED Watch Faces" (450 x 450) canvas: solid hours over outlined
+# minutes, a column of four labelled readings, the date on top and a prompt line with the next
+# event at the bottom. The digits are bitmap fonts (WFF cannot track text tighter, and this
+# keeps solid and outlined digits identical in shape), one PartText per digit.
+# Differences from the design: WFF has no sunrise data, so that reading is a complication slot
+# (system sunrise / sunset provider, which shows whichever comes next, so it is labelled SUN
+# with the provider's icon). The next event is a second complication slot.
+
+TM_ACCENTS = [("orange", "FF8A3D"), ("cyan", "3DE0FF"), ("lime", "C6FF3D"), ("violet", "B69CFF")]
+TM_WHITE, TM_GREY, TM_SOFT = "f2f4f7", "9aa0a8", "c9ced4"
+TM_HEART, TM_BATTERY = "ff6b7a", "c6ff3d"
+TM_DIGIT = 132  # digit font size
+TM_LINE = 0.82 * TM_DIGIT  # line height of one digit row
+TM_PAD = 8  # transparent side margin of a digit image (the tracking makes cells overlap)
+TM_COL_W, TM_COL_GAP = 85.6, 22  # reading column ("24° HAZE") and its gap from the digits
+TM_TOP = 89.6  # top of the centred date / digits / prompt stack
+TM_MID = TM_TOP + 15.84 + 12  # top of the digits rows
+TM_BOTTOM = TM_MID + 2 * TM_LINE + 12  # top of the prompt row
+TM_CHAR = 11 * 0.6 + 11 * 0.12  # prompt row: one tracked character
+TM_MAX_CHARS = 34
+
+
+def tm_digit_images(drawables):
+    """Tabular Space Grotesk Bold digits as solid and 2px-outline images.
+    Returns (digit cell width after the design's -0.06em tracking, image width, height)."""
+    from PIL import ImageChops, ImageFilter, ImageFont
+    tt = instancer.instantiateVariableFont(TTFont(os.path.join(FONT_SRC, "spacegrotesk.ttf")), {"wght": 700})
+    for table in tt["cmap"].tables:
+        for ch in "0123456789":
+            if ord(ch) in table.cmap:
+                table.cmap[ord(ch)] = table.cmap[ord(ch)].split(".")[0] + ".tf"
+    upm = tt["head"].unitsPerEm
+    asc, desc = tt["hhea"].ascent, -tt["hhea"].descent
+    adv = tt["hmtx"]["zero.tf"][0] / upm * TM_DIGIT
+    data = io.BytesIO()
+    tt.save(data)
+    ss = 4
+    data.seek(0)
+    font = ImageFont.truetype(data, TM_DIGIT * ss)
+    w, h = math.ceil(adv) + 2 * TM_PAD, math.ceil(TM_LINE)
+    baseline = (TM_LINE - (asc + desc) / upm * TM_DIGIT) / 2 + asc / upm * TM_DIGIT
+    for ch in "0123456789":
+        mask = Image.new("L", (w * ss, h * ss), 0)
+        ImageDraw.Draw(mask).text((TM_PAD * ss, baseline * ss), ch, font=font, fill=255, anchor="ls")
+        # 2px stroke centred on the glyph edge: grown by 1px minus shrunk by 1px.
+        outline = ImageChops.subtract(mask.filter(ImageFilter.MaxFilter(2 * ss + 1)),
+                                      mask.filter(ImageFilter.MinFilter(2 * ss + 1)))
+        for style, m in (("solid", mask), ("line", outline)):
+            img = Image.new("RGBA", (w, h), (255, 255, 255, 0))
+            img.putalpha(m.resize((w, h), Image.LANCZOS))
+            img.save(os.path.join(drawables, f"tm_{style}_{ch}.png"), optimize=True)
+    return adv - 0.06 * TM_DIGIT, w, h
+
+
+def terminal():
+    face = "terminal"
+    base = os.path.join(ROOT, "watchfaces", face, "src")
+    res = os.path.join(base, "main", "res")
+    fdir = os.path.join(res, "font")
+    drawables = os.path.join(res, "drawable-nodpi")
+    os.makedirs(drawables, exist_ok=True)
+    mono = Font("jetbrainsmono_regular.ttf", fdir, "jetbrainsmono_regular", None)
+    adv, dw, dh = tm_digit_images(drawables)
+    digits_x = CX - (2 * adv + TM_COL_GAP + TM_COL_W) / 2
+    col_x = digits_x + 2 * adv + TM_COL_GAP
+    col_w = 430 - col_x
+    preview = []  # draw ops for the preview image
+
+    bitmap_fonts = ["<BitmapFonts>"]
+    for style in ("solid", "line"):
+        bitmap_fonts.append(f'  <BitmapFont name="tm_{style}">')
+        bitmap_fonts += [f'    <Character name="{d}" resource="tm_{style}_{d}" width="{dw}" height="{dh}"/>'
+                         for d in range(10)]
+        bitmap_fonts.append("  </BitmapFont>")
+    bitmap_fonts = "\n".join(bitmap_fonts + ["</BitmapFonts>"])
+
+    def digit(x, y, style, expr, tint, alpha, ambient_alpha):
+        variant = (f'\n  <Variant mode="AMBIENT" target="alpha" value="{ambient_alpha}"/>'
+                   if ambient_alpha is not None else "")
+        return f"""<PartText x="{ifmt(x)}" y="{ifmt(y)}" width="{dw}" height="{dh}" alpha="{alpha}" tintColor="{tint}">{variant}
+  <Text align="START">
+    <BitmapFont family="tm_{style}" size="{dh}" color="#ffffffff">{template("%d", expr)}</BitmapFont>
+  </Text>
+</PartText>"""
+
+    def digit_row(row, which, style, tint, alpha=255, ambient_alpha=None):
+        def pair(value):
+            return "\n".join(
+                digit(digits_x + i * adv - TM_PAD, TM_MID + row * TM_LINE, style, e, tint, alpha, ambient_alpha)
+                for i, e in enumerate((f"floor({value} / 10)", f"{value} % 10")))
+        if which == "mm":
+            return pair("[MINUTE]")
+        return condition(f"h24_{next(_time_ids)}", "[IS_24_HOUR_MODE]", pair("[HOUR_0_23]"), pair("[HOUR_1_12]"))
+
+    time_on = [digit_row(0, "hh", "solid", argb(TM_WHITE), ambient_alpha=0),
+               digit_row(1, "mm", "line", ACCENT, ambient_alpha=0)]
+    time_amb = [digit_row(0, "hh", "line", argb("d0d0d0"), alpha=0, ambient_alpha=255),
+                digit_row(1, "mm", "line", argb("7a7a7a"), alpha=0, ambient_alpha=255)]
+    for row, (sample, style, color) in enumerate((("10", "solid", TM_WHITE), ("08", "line", None))):
+        for i, ch in enumerate(sample):
+            preview.append(("image", f"tm_{style}_{ch}", digits_x + i * adv - TM_PAD, TM_MID + row * TM_LINE, color))
+
+    def text(x, top, w, size, color, body, sample="", align="START", ls=0.0):
+        """PartText whose CSS 'normal' line box starts at `top`; ls in px."""
+        if sample:
+            preview.append(("text", x, top + mono.asc / mono.upm * size, w, size, color, sample, align, ls))
+        return part_text(x, top, w, mono.line_h(size) + 1, mono, size, argb(color), body, align=align,
+                         letter_spacing=ls / size)
+
+    date = text(0, TM_TOP, SIZE, 12, TM_GREY,
+                "<Upper>" + template("%s %s %s %s", "[DAY_OF_WEEK_S]", "[DAY_Z]", "[MONTH_S]", "[YEAR]") + "</Upper>",
+                "THU 26 NOV 2026", align="CENTER", ls=2.64)
+
+    # Reading column: label (11px) over value (16px), four blocks, centred on the digits.
+    block_h = mono.line_h(11) + 2 + mono.line_h(16)
+    col_top = TM_MID + (2 * TM_LINE - (4 * block_h + 3 * 13)) / 2
+    tops = [col_top + i * (block_h + 13) for i in range(4)]
+    value_dy = mono.line_h(11) + 2
+
+    def label(i, name):
+        return text(col_x, tops[i], col_w, 11, TM_GREY, name, name, ls=1.1)
+
+    def value(i, body, color=TM_WHITE, sample=""):
+        return text(col_x, tops[i] + value_dy, col_w, 16, color, body, sample, ls=1.1)
+
+    def sample_value(i, color, sample):
+        """Preview-only text for a value whose XML has several branches."""
+        preview.append(("text", col_x, tops[i] + value_dy + mono.asc / mono.upm * 16, col_w, 16, color,
+                        sample, "START", 1.1))
+
+    weather = condition(
+        "weather", "[WEATHER.IS_AVAILABLE]",
+        value(0, "<Upper>" + template("%d° %s", "[WEATHER.TEMPERATURE]", "[WEATHER.CONDITION_NAME]") + "</Upper>"),
+        value(0, "--°"))
+    # Long condition names end in an ellipsis instead of running off the screen.
+    weather = weather.replace('<Text align="START">', '<Text align="START" ellipsis="TRUE">')
+    sample_value(0, TM_WHITE, "24° HAZE")
+    heart = condition("has_hr", "[HEART_RATE] > 0",
+                      value(2, template("%d BPM", "round([HEART_RATE])"), TM_HEART),
+                      value(2, "-- BPM", TM_HEART))
+    sample_value(2, TM_HEART, "68 BPM")
+    readings = [label(0, "WEATHER"), weather, label(2, "HEART"), heart, label(3, "BATTERY"),
+                value(3, template("%d%%", "[BATTERY_PERCENT]"), TM_BATTERY, "64%")]
+
+    def slot(slot_id, x, y, w, h, name, provider, kind, types, body):
+        """Complication slot over a fallback drawn in the scene; body(type, w, h) covers it."""
+        sx, sy, sw_, sh = (int(round(v)) for v in (x, y, w, h))
+        parts = "\n".join(f'  <Complication type="{t}">\n{indent(body(t, sw_, sh), 4)}\n  </Complication>'
+                          for t in types.split())
+        return f"""<ComplicationSlot slotId="{slot_id}" x="{sx}" y="{sy}" width="{sw_}" height="{sh}" displayName="{name}"
+    supportedTypes="{types}" isCustomizable="TRUE">
+  <Variant mode="AMBIENT" target="alpha" value="0"/>
+  <DefaultProviderPolicy defaultSystemProvider="{provider}" defaultSystemProviderType="{kind}"/>
+  <BoundingBox x="0" y="0" width="{sw_}" height="{sh}"/>
+{parts}
+</ComplicationSlot>"""
+
+    def cover(w, h):
+        """Black box hiding the fallback once a complication has data."""
+        return f"""<PartDraw x="0" y="0" width="{w}" height="{h}">
+  <Rectangle x="0" y="0" width="{w}" height="{h}"><Fill color="#ff000000"/></Rectangle>
+</PartDraw>"""
+
+    # Sunrise / sunset.
+    sun_fallback = [label(1, "SUN"), value(1, "--:--", TM_WHITE, "06:31")]
+
+    def sun_body(kind, w, h):
+        icon_x = int(round(mono.width("SUN", 11) + 3 * 1.1 + 5))
+        return "\n".join([
+            cover(w, h),
+            part_text(0, 0, 40, mono.line_h(11) + 1, mono, 11, argb(TM_GREY), "SUN", align="START",
+                      letter_spacing=0.1),
+            f"""<PartImage x="{icon_x}" y="1" width="13" height="13" tintColor="{argb(TM_GREY)}">
+  <Image resource="[COMPLICATION.MONOCHROMATIC_IMAGE]"/>
+</PartImage>""",
+            part_text(0, value_dy, w, mono.line_h(16) + 1, mono, 16, argb(TM_WHITE),
+                      template("%s", "[COMPLICATION.TEXT]"), align="START", letter_spacing=1.1 / 16),
+        ])
+
+    sun = slot(0, col_x, tops[1], col_w, math.ceil(block_h) + 1, "sun_label", "SUNRISE_SUNSET", "SHORT_TEXT",
+               "SHORT_TEXT", sun_body)
+
+    # Prompt row: ">_", text and a blinking cursor, centred as one line. JetBrains Mono is
+    # monospaced, so the row's width follows from the number of characters.
+    row_x, row_w, row_y, row_h = 45, 360, int(round(TM_BOTTOM)) - 1, 18
+    text_h = int(round(mono.line_h(11) + 1))
+
+    def prompt_row(n, body):
+        """n: character count of the message, a number or a WFF expression."""
+        fixed = 2 * TM_CHAR + 8 + 8 + 7  # prompt, gaps and cursor
+        text_x = 2 * TM_CHAR + 8
+
+        def place(offset, per_char=0.0):
+            """(x, Transform) for a part `offset` + n * `per_char` into the centred row."""
+            if isinstance(n, int):
+                return int(round((row_w - fixed - n * TM_CHAR) / 2 + offset + n * per_char)), ""
+            expr = f"({fmt(row_w - fixed)} - ({n}) * {fmt(TM_CHAR)}) / 2 + {fmt(offset)} + ({n}) * {fmt(per_char)}"
+            return 0, f'\n  <Transform target="x" value="{escape(expr)}"/>'
+
+        def words(offset, color, content, width, tint=None):
+            x, transform = place(offset)
+            tint_attr = f' tintColor="{tint}"' if tint else ""
+            return f"""<PartText x="{x}" y="1" width="{width}" height="{text_h}"{tint_attr}>{transform}
+  <Text align="START" ellipsis="TRUE">
+    <Font family="{mono.name}" size="11" color="{argb(color)}" letterSpacing="0.12">{content}</Font>
+  </Text>
+</PartText>"""
+
+        x, transform = place(text_x + 8, TM_CHAR)
+        cursor = f"""<PartDraw x="{x}" y="1" width="7" height="13" tintColor="{ACCENT}">{transform}
+  <Transform target="alpha" value="([SECOND] % 2) * 255"/>
+  <Rectangle x="0" y="0" width="7" height="13"><Fill color="#ffffffff"/></Rectangle>
+</PartDraw>"""
+
+        return "\n".join([
+            words(0, "ffffff", "&gt;_", 20, tint=ACCENT),
+            words(text_x, TM_SOFT, body, int(TM_MAX_CHARS * TM_CHAR) + 4),
+            cursor,
+        ])
+
+    fallback_row = f"""<Group name="no_event" x="{row_x}" y="{row_y}" width="{row_w}" height="{row_h}">
+{indent(prompt_row(len("NO EVENTS"), "NO EVENTS"), 2)}
+</Group>"""
+
+    def event_body(kind, w, h):
+        if kind == "LONG_TEXT":
+            fields, fmt_str, extra_chars = ["[COMPLICATION.TITLE]", "[COMPLICATION.TEXT]"], "NEXT %s %s", 6
+        else:
+            fields, fmt_str, extra_chars = ["[COMPLICATION.TEXT]"], "NEXT %s", 5
+        n = " + ".join(f"textLength({f})" for f in fields)
+        n = f"clamp({n} + {extra_chars}, 0, {TM_MAX_CHARS})"
+        return "\n".join([cover(w, h), prompt_row(n, "<Upper>" + template(fmt_str, *fields) + "</Upper>")])
+
+    event = slot(1, row_x, row_y, row_w, row_h, "next_label", "NEXT_EVENT", "LONG_TEXT",
+                 "LONG_TEXT SHORT_TEXT", event_body)
+    preview.append(("prompt", "NEXT 09:30 STANDUP", TM_BOTTOM))
+
+    scene = [
+        *time_on, *time_amb,
+        group("date", [date], ambient_alpha=160),
+        group("readings", [*readings, *sun_fallback], ambient_alpha=0),
+        group("prompt", [fallback_row], ambient_alpha=0),
+        sun, event,
+    ]
+    tm_preview_images(base, res, preview)
+    write_module(face, "Terminal", TM_ACCENTS, scene, res, base, extra=bitmap_fonts,
+                 strings={"sun_label": "Sunrise / sunset", "next_label": "Next event"})
+
+
+def tm_preview_images(base, res, ops):
+    """Preview at 10:08 with sample data, one per accent, from the same layout as the XML."""
+    from PIL import ImageFont
+    ss = 3
+    drawables = os.path.join(res, "drawable-nodpi")
+    font_path = os.path.join(res, "font", "jetbrainsmono_regular.ttf")
+    for name, hex_ in TM_ACCENTS:
+        img = Image.new("RGB", (SIZE * ss, SIZE * ss), "black")
+        dr = ImageDraw.Draw(img)
+
+        def words(x, b, size, color, sample, ls):
+            pil = ImageFont.truetype(font_path, round(size * ss))
+            for ch in sample:
+                dr.text((x * ss, b * ss), ch, font=pil, fill="#" + (color or hex_), anchor="ls")
+                x += pil.getlength(ch) / ss + ls
+
+        for op in ops:
+            if op[0] == "image":
+                _, resource, x, y, color = op
+                alpha = Image.open(os.path.join(drawables, resource + ".png")).getchannel("A")
+                size = (alpha.width * ss, alpha.height * ss)
+                img.paste("#" + (color or hex_), (round(x * ss), round(y * ss)), alpha.resize(size, Image.LANCZOS))
+            elif op[0] == "text":
+                _, x, b, w, size, color, sample, align, ls = op
+                if align == "CENTER":
+                    x += (w - len(sample) * (0.6 * size + ls)) / 2
+                words(x, b, size, color, sample, ls)
+            elif op[0] == "prompt":
+                _, sample, top = op
+                x = CX - ((2 + len(sample)) * TM_CHAR + 23) / 2
+                words(x, top + 11.2, 11, None, ">_", 1.32)
+                words(x + 2 * TM_CHAR + 8, top + 11.2, 11, TM_SOFT, sample, 1.32)
+                cx = x + (2 + len(sample)) * TM_CHAR + 16
+                dr.rectangle([cx * ss, top * ss, (cx + 7) * ss - 1, (top + 13) * ss - 1], fill="#" + hex_)
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, img.size[0] - 1, img.size[1] - 1], fill=255)
+        out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        out.paste(img, (0, 0), mask)
+        d = os.path.join(base, name, "res", "drawable-nodpi")
+        os.makedirs(d, exist_ok=True)
+        out.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(d, "preview.png"), optimize=True)
+
+
 # ---------------------------------------------------------------- module files
 
 def write_module(face, title, accents, scene, res, base, user_config=True, extra="", editable=True,
@@ -1350,6 +1964,7 @@ def write_module(face, title, accents, scene, res, base, user_config=True, extra
     for d in ("values", "xml", "drawable-nodpi"):
         os.makedirs(os.path.join(res, d), exist_ok=True)
     labels = "\n".join(f'    <string name="accent_{n}">{n.capitalize()}</string>' for n, _ in accents)
+    labels += "".join(f'\n    <string name="{k}">{escape(v)}</string>' for k, v in (strings or {}).items())
     with open(os.path.join(res, "values", "strings.xml"), "w", encoding="utf-8") as f:
         f.write(f"""<?xml version="1.0" encoding="utf-8"?>
 <!-- Generated by tools/gen_watchfaces.py -->
@@ -1386,3 +2001,5 @@ if __name__ == "__main__":
     ember_forest()
     shell_window()
     shell_full()
+    stack()
+    terminal()
