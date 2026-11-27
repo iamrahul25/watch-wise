@@ -7,7 +7,14 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.wear.watchfacepush.WatchFacePushManager
 import androidx.wear.watchfacepush.WatchFacePushManagerFactory
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -32,7 +39,7 @@ sealed interface PushResult {
     /** Watch Face Push isn't available (Wear OS 5 or older). */
     data object Unsupported : PushResult
 
-    data class Failed(val message: String) : PushResult
+    data class Failed(val message: String, val retryable: Boolean = false) : PushResult
 }
 
 /**
@@ -45,6 +52,15 @@ sealed interface PushResult {
 object FacePusher {
     const val ACTIVATE_PERMISSION = "com.google.wear.permission.SET_PUSHED_WATCH_FACE_AS_ACTIVE"
     private const val TAG = "FacePusher"
+    private const val ATTEMPTS = 3
+    private const val RETRY_DELAY_MS = 1_500L
+
+    /** Bumped whenever the slot may have changed, so open screens reload (also after phone requests). */
+    private val _changes = MutableStateFlow(0)
+    val changes: StateFlow<Int> = _changes
+
+    /** One slot, so one install at a time (the watch UI and the phone can both ask). */
+    private val slotLock = Mutex()
 
     val isSupported: Boolean get() = WatchFacePushManagerFactory.isSupported()
 
@@ -71,6 +87,27 @@ object FacePusher {
     /** Install (or swap in) [face] with [accent], then make it active if possible. */
     suspend fun push(context: Context, face: WatchFace, accent: Accent): PushResult {
         if (!isSupported) return PushResult.Unsupported
+        return try {
+            slotLock.withLock { pushWithRetry(context, face, accent) }
+        } finally {
+            _changes.update { it + 1 }
+        }
+    }
+
+    /**
+     * Wear OS sometimes fails an update with an "unknown error" (it tries to show the new face
+     * before it has finished registering it) and keeps the old one. Trying again works.
+     */
+    private suspend fun pushWithRetry(context: Context, face: WatchFace, accent: Accent): PushResult {
+        repeat(ATTEMPTS - 1) { attempt ->
+            val result = pushOnce(context, face, accent)
+            if (result !is PushResult.Failed || !result.retryable) return result
+            delay(RETRY_DELAY_MS * (attempt + 1))
+        }
+        return pushOnce(context, face, accent)
+    }
+
+    private suspend fun pushOnce(context: Context, face: WatchFace, accent: Accent): PushResult {
         val m = manager(context)
         val target = face.packageName(accent)
         return try {
@@ -85,15 +122,22 @@ object FacePusher {
                 !hasActivatePermission(context) -> PushResult.NeedsActivatePermission(details.slotId)
                 else -> activate(context, details.slotId)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Push failed for $target", e)
-            PushResult.Failed(e.message ?: e.javaClass.simpleName)
+            PushResult.Failed(
+                message = e.message ?: e.javaClass.simpleName,
+                retryable = e is WatchFacePushManager.UpdateWatchFaceException &&
+                    e.errorCode == WatchFacePushManager.UpdateWatchFaceException.ERROR_UNKNOWN,
+            )
         }
     }
 
     /** Make the face in [slotId] the watch's active face. */
     suspend fun activate(context: Context, slotId: String): PushResult = try {
         manager(context).setWatchFaceAsActive(slotId)
+        _changes.update { it + 1 }
         PushResult.Active
     } catch (e: WatchFacePushManager.SetWatchFaceAsActiveException) {
         // Allowed only once per app; after that the user picks it from the watch face list.

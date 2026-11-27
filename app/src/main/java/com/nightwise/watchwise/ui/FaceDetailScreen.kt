@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +54,9 @@ import kotlinx.coroutines.launch
 fun FaceDetailScreen(face: WatchFace) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var accent by remember { mutableIntStateOf(FacePrefs.accent(context, face)) }
+    val slotVersion by FacePusher.changes.collectAsState()
+    // Re-read after a change: the phone companion can pick an accent too.
+    var accent by remember(slotVersion) { mutableIntStateOf(FacePrefs.accent(context, face)) }
     var installed by remember { mutableStateOf<InstalledFace?>(null) }
     var busy by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
@@ -62,7 +65,7 @@ fun FaceDetailScreen(face: WatchFace) {
 
     fun refresh() = scope.launch { installed = FacePusher.installed(context) }
 
-    LifecycleResumeEffect(face) {
+    LifecycleResumeEffect(face, slotVersion) {
         refresh()
         sensorsAllowed = HealthData.hasSensorPermissions(context)
         onPauseOrDispose { }

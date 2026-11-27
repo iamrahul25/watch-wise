@@ -23,6 +23,8 @@ signing.properties
 *.ap_
 *.dex
 release/
+# ...but not source sets named "release"
+!**/src/release/
 
 # ---- Android Studio / IntelliJ (keep shared settings, ignore personal state) ----
 *.iml

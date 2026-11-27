@@ -1,0 +1,9 @@
+<resources>
+    <!-- Window colours before Compose draws; the app is always dark. -->
+    <style name="Theme.WatchWise" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ink</item>
+        <item name="android:colorBackground">@color/ink</item>
+    </style>
+
+    <color name="ink">#07080B</color>
+</resources>

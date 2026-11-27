@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +47,8 @@ fun FaceListScreen(onOpen: (WatchFace) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var installed by remember { mutableStateOf<InstalledFace?>(null) }
-    LifecycleResumeEffect(Unit) {
+    val slotVersion by FacePusher.changes.collectAsState()
+    LifecycleResumeEffect(slotVersion) {
         val job = scope.launch { installed = FacePusher.installed(context) }
         onPauseOrDispose { job.cancel() }
     }

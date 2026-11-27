@@ -26,7 +26,7 @@
         android:label="@string/app_name"
         android:theme="@android:style/Theme.DeviceDefault">
 
-        <!-- Runs on the watch without a companion phone app. -->
+        <!-- Works on its own; the phone companion (:mobile) is optional. -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
@@ -34,11 +34,34 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Opened from the phone companion (RemoteActivityHelper). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="face"
+                    android:scheme="watchwise" />
+            </intent-filter>
         </activity>
+
+        <!-- Requests from the phone companion (same package and signing key only). -->
+        <service
+            android:name=".link.PhoneRequestService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.REQUEST_RECEIVED" />
+                <data
+                    android:host="*"
+                    android:pathPrefix="/watchwise"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>
