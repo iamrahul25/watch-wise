@@ -52,6 +52,14 @@ object HealthData {
 
     fun hasSensorPermissions(context: Context) = sensorPermissions.all { hasPermission(context, it) }
 
+    /** Release builds don't declare the sensor permissions (debug only), so there is nothing to ask for. */
+    fun sensorsDeclared(context: Context): Boolean {
+        val requested = context.packageManager
+            .getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS).requestedPermissions
+            ?: return false
+        return sensorPermissions.all { it in requested }
+    }
+
     /** Start the step counter if allowed. Safe to call many times. */
     @Synchronized
     fun start(context: Context) {

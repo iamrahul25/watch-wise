@@ -3,6 +3,13 @@
      control this watch emulator without pairing them. Release builds contain none of this. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Live steps / heart rate in the in-app previews (not in release builds). -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission
+        android:name="android.permission.BODY_SENSORS"
+        android:maxSdkVersion="35" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />

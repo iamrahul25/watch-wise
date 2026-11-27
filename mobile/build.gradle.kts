@@ -18,7 +18,7 @@ android {
         targetSdk = 37
         // Phone = 1xxxxxx, watch = 2xxxxxx.
         versionCode = 1_000_002
-        versionName = "1.1"
+        versionName = "1.0.0"
     }
 
     buildTypes {

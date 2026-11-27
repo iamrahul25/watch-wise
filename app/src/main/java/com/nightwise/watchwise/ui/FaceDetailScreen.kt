@@ -208,7 +208,7 @@ fun FaceDetailScreen(face: WatchFace) {
                     )
                 }
             }
-            if (face.usesSensors && !sensorsAllowed) {
+            if (face.usesSensors && !sensorsAllowed && HealthData.sensorsDeclared(context)) {
                 item {
                     Button(
                         onClick = { sensorLauncher.launch(HealthData.sensorPermissions) },

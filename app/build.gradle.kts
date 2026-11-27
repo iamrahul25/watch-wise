@@ -19,7 +19,7 @@ android {
         // Same applicationId and signing key as the phone app (:mobile), published on one Play
         // listing. Each build needs its own version code: watch = 2xxxxxx, phone = 1xxxxxx.
         versionCode = 2_000_002
-        versionName = "1.1"
+        versionName = "1.0.0"
     }
 
     buildTypes {
