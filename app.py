@@ -55,6 +55,7 @@ WATCH_FACES = {
     "stack": ("Stack", ["violet", "cyan", "orange", "lime"]),
     "terminal": ("Terminal", ["orange", "cyan", "lime", "violet"]),
     "commitgrid": ("Commit Grid", ["green", "blue", "purple", "orange"]),
+    "silhouette": ("Silhouette", ["woman", "man"]),
 }
 
 

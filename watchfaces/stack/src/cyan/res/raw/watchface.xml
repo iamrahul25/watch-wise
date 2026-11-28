@@ -25,8 +25,8 @@
       </PartDraw>
     </Group>
     <Condition>
-      <Expressions><Expression name="h24_0"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
-      <Compare expression="h24_0">
+      <Expressions><Expression name="h24_54"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
+      <Compare expression="h24_54">
         <PartText x="75" y="36" width="183" height="233" alpha="255">
             <Variant mode="AMBIENT" target="alpha" value="0"/>
           <Text align="CENTER">
@@ -50,8 +50,8 @@
       </Text>
     </PartText>
     <Condition>
-      <Expressions><Expression name="h24_1"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
-      <Compare expression="h24_1">
+      <Expressions><Expression name="h24_55"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
+      <Compare expression="h24_55">
         <PartText x="75" y="36" width="183" height="233" alpha="0">
             <Variant mode="AMBIENT" target="alpha" value="255"/>
           <Text align="CENTER">
@@ -173,8 +173,8 @@
         <Image resource="icon_steps"/>
       </PartImage>
       <Condition>
-        <Expressions><Expression name="st_steps2"><![CDATA[[STEP_COUNT] < 1000]]></Expression></Expressions>
-        <Compare expression="st_steps2">
+        <Expressions><Expression name="st_steps56"><![CDATA[[STEP_COUNT] < 1000]]></Expression></Expressions>
+        <Compare expression="st_steps56">
           <PartText x="285" y="248" width="131" height="23" alpha="255">
             <Text align="START">
               <Font family="spacegrotesk_bold" size="16.88" color="#fff2f2f2"><Template>%d<Parameter expression="[STEP_COUNT]"/></Template></Font>
@@ -183,8 +183,8 @@
         </Compare>
         <Default>
           <Condition>
-            <Expressions><Expression name="st_steps3"><![CDATA[(([STEP_COUNT]) % 1000) < 10]]></Expression></Expressions>
-            <Compare expression="st_steps3">
+            <Expressions><Expression name="st_steps57"><![CDATA[(([STEP_COUNT]) % 1000) < 10]]></Expression></Expressions>
+            <Compare expression="st_steps57">
               <PartText x="285" y="248" width="131" height="23" alpha="255">
                 <Text align="START">
                   <Font family="spacegrotesk_bold" size="16.88" color="#fff2f2f2"><Template>%d,00%d<Parameter expression="floor(([STEP_COUNT]) / 1000)"/><Parameter expression="(([STEP_COUNT]) % 1000)"/></Template></Font>
@@ -193,8 +193,8 @@
             </Compare>
             <Default>
               <Condition>
-                <Expressions><Expression name="st_steps4"><![CDATA[(([STEP_COUNT]) % 1000) < 100]]></Expression></Expressions>
-                <Compare expression="st_steps4">
+                <Expressions><Expression name="st_steps58"><![CDATA[(([STEP_COUNT]) % 1000) < 100]]></Expression></Expressions>
+                <Compare expression="st_steps58">
                   <PartText x="285" y="248" width="131" height="23" alpha="255">
                     <Text align="START">
                       <Font family="spacegrotesk_bold" size="16.88" color="#fff2f2f2"><Template>%d,0%d<Parameter expression="floor(([STEP_COUNT]) / 1000)"/><Parameter expression="(([STEP_COUNT]) % 1000)"/></Template></Font>

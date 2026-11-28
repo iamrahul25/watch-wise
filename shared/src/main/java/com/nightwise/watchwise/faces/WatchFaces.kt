@@ -28,6 +28,8 @@ enum class WatchFace(
     val usesSensors: Boolean,
     /** Moves between seconds, so its preview redraws at 10 fps. */
     val animated: Boolean = false,
+    /** The accent options are background pictures; [Accent.color] only identifies each one. */
+    val hasPictures: Boolean = false,
 ) {
     MONO_STACK(
         id = "mono_stack",
@@ -120,6 +122,16 @@ enum class WatchFace(
             accent("purple", 0xBC8CFF), accent("orange", 0xFF9E3D),
         ),
         usesSensors = true,
+    ),
+    SILHOUETTE(
+        id = "silhouette",
+        pushName = "silhouette",
+        title = "Silhouette",
+        tagline = "Photo",
+        // Pictures, not colours (also changeable in the watch's Customise screen).
+        accents = listOf(accent("woman", 0xE8E8E8), accent("man", 0x9FB4C7)),
+        usesSensors = false,
+        hasPictures = true,
     );
 
     fun createPainter(assets: AssetManager): FacePainter = when (this) {
@@ -131,7 +143,14 @@ enum class WatchFace(
         STACK -> StackPainter(assets)
         TERMINAL -> TerminalPainter(assets)
         COMMIT_GRID -> CommitGridPainter(assets)
+        SILHOUETTE -> SilhouettePainter(assets)
     }
+
+    /** What the user picks between: "accent" colours or "picture"s. */
+    val optionKind: String get() = if (hasPictures) "picture" else "accent"
+
+    /** Asset path of the picture behind an option, for faces with [hasPictures]. */
+    fun pictureAsset(accent: Accent) = "photos/${pushName}_${accent.name}.webp"
 
     /** Package name of the pushed watch face for an accent (must start with "<app>.watchfacepush."). */
     fun packageName(accent: Accent) = "$PUSH_PREFIX${pushName}_${accent.name}"

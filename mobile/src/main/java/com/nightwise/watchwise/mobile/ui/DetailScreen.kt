@@ -1,10 +1,12 @@
 package com.nightwise.watchwise.mobile.ui
 
+import android.graphics.BitmapFactory
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,7 +51,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -72,6 +77,7 @@ private val WatchFace.about: String
         WatchFace.STACK -> "Tall hours over bright minutes, with date and stats at a glance."
         WatchFace.TERMINAL -> "Solid and outlined digits beside a tidy column of readings."
         WatchFace.COMMIT_GRID -> "A developer dashboard: your step goal fills a contribution-style grid."
+        WatchFace.SILHOUETTE -> "A shadow behind frosted glass, with the day, time and battery beside it."
     }
 
 private val WatchFace.readings: List<String>
@@ -84,6 +90,7 @@ private val WatchFace.readings: List<String>
         WatchFace.STACK -> listOf("Sunrise", "Next event", "Steps", "Heart rate", "Weather")
         WatchFace.TERMINAL -> listOf("Sunrise", "Next event", "Heart rate", "Weather", "Battery")
         WatchFace.COMMIT_GRID -> listOf("Step goal grid", "Steps", "Heart rate", "Weather", "Battery")
+        WatchFace.SILHOUETTE -> listOf("Day and date", "Battery")
     }
 
 /** Readable text on top of an accent colour. */
@@ -149,10 +156,10 @@ fun DetailScreen(
                 modifier = Modifier.padding(horizontal = 32.dp, vertical = 6.dp),
             )
 
-            SectionLabel("ACCENT · ${accent.name.uppercase()}")
+            SectionLabel("${face.optionKind.uppercase()} · ${accent.name.uppercase()}")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 face.accents.forEach { option ->
-                    Swatch(option, selected = option == accent) { model.selectAccent(face, option) }
+                    Swatch(face, option, selected = option == accent) { model.selectAccent(face, option) }
                 }
             }
 
@@ -286,7 +293,12 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun Swatch(accent: Accent, selected: Boolean, onClick: () -> Unit) {
+private fun Swatch(face: WatchFace, accent: Accent, selected: Boolean, onClick: () -> Unit) {
+    val assets = LocalContext.current.assets
+    val picture = remember(face, accent) {
+        if (!face.hasPictures) null
+        else assets.open(face.pictureAsset(accent)).use { BitmapFactory.decodeStream(it) }.asImageBitmap()
+    }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -296,10 +308,14 @@ private fun Swatch(accent: Accent, selected: Boolean, onClick: () -> Unit) {
             .border(2.dp, if (selected) TextPrimary else Color.Transparent, CircleShape)
             .semantics {
                 this.selected = selected
-                contentDescription = "${accent.name} accent"
+                contentDescription = "${accent.name} ${face.optionKind}"
             },
     ) {
-        Box(Modifier.size(38.dp).background(Color(accent.color), CircleShape))
+        if (picture != null) {
+            Image(picture, contentDescription = null, modifier = Modifier.size(42.dp).clip(CircleShape))
+        } else {
+            Box(Modifier.size(38.dp).background(Color(accent.color), CircleShape))
+        }
     }
 }
 

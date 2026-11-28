@@ -3,7 +3,7 @@
 Writes, for each face module under watchfaces/<face>/src:
   main/res/font/*.ttf             static font weights cut from the variable fonts in
                                   shared/src/main/assets/fonts (WFF has no variable-axis support)
-  main/res/drawable-nodpi/*.png   icons / dot grid images
+  main/res/drawable-nodpi/*.png   icons / dot grid images / pictures (from shared/src/main/assets/photos)
   main/res/values/strings.xml     labels for the face and its accent options
   main/res/xml/watch_face_info.xml
   <accent>/res/raw/watchface.xml  one per accent flavour; identical except for the
@@ -31,6 +31,7 @@ from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_SRC = os.path.join(ROOT, "shared", "src", "main", "assets", "fonts")
+PHOTO_SRC = os.path.join(ROOT, "shared", "src", "main", "assets", "photos")
 SIZE = 450
 CX = CY = SIZE / 2
 
@@ -347,6 +348,9 @@ def color_config(accents, default_index):
 
 
 def watchface_xml(accents, default_index, scene_children, user_config=True, extra=""):
+    """extra: XML before the scene, or a function accent index -> XML."""
+    if callable(extra):
+        extra = extra(default_index)
     scene = "\n".join(indent(c, 4) for c in scene_children)
     config = color_config(accents, default_index) + "\n" if user_config else ""
     extra = indent(extra, 2) + "\n" if extra else ""
@@ -2266,10 +2270,119 @@ def cg_preview_images(base, res):
         out.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(d, "preview.png"), optimize=True)
 
 
+# ---------------------------------------------------------------- Silhouette
+
+# Pictures (shared/src/main/assets/photos/silhouette_<name>.webp), one accent flavour each.
+# The colour only identifies the option in the app (see WatchFaces.kt).
+SI_PICTURES = [("woman", "E8E8E8"), ("man", "9FB4C7")]
+SI_RIGHT = 388  # right edge of the text column
+SI_DATE_BASE, SI_TIME_BASE, SI_BATTERY_BASE = 256, 336, 370  # text baselines
+SI_DATE, SI_TIME, SI_BATTERY = 30, 96, 24  # text sizes
+SI_ICON_W = 40  # battery symbol (30) and its gap
+
+
+def silhouette():
+    face = "silhouette"
+    base = os.path.join(ROOT, "watchfaces", face, "src")
+    res = os.path.join(base, "main", "res")
+    fdir = os.path.join(res, "font")
+    semibold = Font("spacegrotesk.ttf", fdir, "spacegrotesk_semibold", {"wght": 600})
+    medium = Font("spacegrotesk.ttf", fdir, "spacegrotesk_medium", {"wght": 500})
+    drawables = os.path.join(res, "drawable-nodpi")
+    os.makedirs(drawables, exist_ok=True)
+    for name, _ in SI_PICTURES:
+        photo = Image.open(os.path.join(PHOTO_SRC, f"silhouette_{name}.webp")).convert("RGB")
+        photo.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(drawables, f"photo_{name}.png"), optimize=True)
+
+    white = "#ffffffff"
+
+    def line(baseline, font, size, body, right=SI_RIGHT):
+        """Right-aligned line of text ending at `right`, on `baseline`."""
+        top = baseline - font.asc / font.upm * size
+        return part_text(0, top, right, font.line_h(size) + 2, font, size, white, body, align="END")
+
+    date = line(SI_DATE_BASE, semibold, SI_DATE,
+                "<Upper>" + template("%s %s", "[DAY_OF_WEEK_S]", "[DAY]") + "</Upper>")
+    top = SI_TIME_BASE - medium.asc / medium.upm * SI_TIME
+    clock = time_text(0, top, SI_RIGHT, medium.line_h(SI_TIME) + 2, "hh:mm", medium, SI_TIME, white, align="END")
+
+    percent = line(SI_BATTERY_BASE, medium, SI_BATTERY, template("%d%%", "[BATTERY_PERCENT]"),
+                   right=SI_RIGHT - SI_ICON_W)
+    x, y = SI_RIGHT - 30, SI_BATTERY_BASE - 15
+    icon = f"""<PartDraw x="{x - 2}" y="{y - 2}" width="34" height="19">
+  <RoundRectangle x="2" y="2" width="26" height="14" cornerRadiusX="3" cornerRadiusY="3"><Stroke color="{white}" thickness="2"/></RoundRectangle>
+  <Rectangle x="29" y="6" width="3" height="6"><Fill color="{white}"/></Rectangle>
+  <Rectangle x="5" y="5" width="20" height="8">
+    <Transform target="width" value="clamp([BATTERY_PERCENT] / 5, 1, 20)"/>
+    <Fill color="{white}"/>
+  </Rectangle>
+</PartDraw>"""
+
+    # The picture is chosen here or in the watch's Customise screen; each flavour starts on its own.
+    def picture_config(default_index):
+        options = "\n".join(
+            f'    <ListOption id="{i}" displayName="accent_{name}" icon="photo_{name}"/>'
+            for i, (name, _) in enumerate(SI_PICTURES))
+        return f"""<UserConfigurations>
+  <ListConfiguration id="picture" displayName="accent_label" defaultValue="{default_index}">
+{options}
+  </ListConfiguration>
+</UserConfigurations>"""
+
+    options = "\n".join(f"""  <ListOption id="{i}">
+    <PartImage x="0" y="0" width="{SIZE}" height="{SIZE}"><Image resource="photo_{name}"/></PartImage>
+  </ListOption>""" for i, (name, _) in enumerate(SI_PICTURES))
+    picture = f"""<ListConfiguration id="picture">
+{options}
+</ListConfiguration>"""
+
+    scene = [
+        # Always-on keeps only the dimmed date and time, so very few pixels are lit.
+        group("picture", [picture], ambient_alpha=0),
+        group("details", [date, clock], ambient_alpha=170),
+        group("battery", [percent, icon], ambient_alpha=0),
+    ]
+    silhouette_preview_images(base, res)
+    write_module(face, "Silhouette", SI_PICTURES, scene, res, base, user_config=False, extra=picture_config,
+                 config_label="Picture")
+
+
+def silhouette_preview_images(base, res):
+    """Preview at SAT 28, 10:08 with 84% battery, one per picture."""
+    from PIL import ImageFont
+    ss = 3
+    fonts = os.path.join(res, "font")
+
+    for name, _ in SI_PICTURES:
+        img = Image.open(os.path.join(res, "drawable-nodpi", f"photo_{name}.png")).convert("RGBA")
+        img = img.resize((SIZE * ss, SIZE * ss), Image.LANCZOS)
+        dr = ImageDraw.Draw(img)
+
+        def words(x, y, s, weight, size):
+            font = ImageFont.truetype(os.path.join(fonts, f"spacegrotesk_{weight}.ttf"), size * ss)
+            dr.text((x * ss, y * ss), s, font=font, fill="white", anchor="rs")
+
+        words(SI_RIGHT, SI_DATE_BASE, "SAT 28", "semibold", SI_DATE)
+        words(SI_RIGHT, SI_TIME_BASE, "10:08", "medium", SI_TIME)
+        words(SI_RIGHT - SI_ICON_W, SI_BATTERY_BASE, "84%", "medium", SI_BATTERY)
+        x, y = SI_RIGHT - 30, SI_BATTERY_BASE - 15
+        dr.rounded_rectangle([(x - 1) * ss, (y - 1) * ss, (x + 27) * ss, (y + 15) * ss], 4 * ss,
+                             outline="white", width=2 * ss)
+        dr.rectangle([(x + 27) * ss, (y + 4) * ss, (x + 30) * ss, (y + 10) * ss], fill="white")
+        dr.rectangle([(x + 3) * ss, (y + 3) * ss, (x + 20) * ss, (y + 11) * ss], fill="white")
+        mask = Image.new("L", img.size, 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, img.size[0] - 1, img.size[1] - 1], fill=255)
+        out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        out.paste(img, (0, 0), mask)
+        d = os.path.join(base, name, "res", "drawable-nodpi")
+        os.makedirs(d, exist_ok=True)
+        out.resize((SIZE, SIZE), Image.LANCZOS).save(os.path.join(d, "preview.png"), optimize=True)
+
+
 # ---------------------------------------------------------------- module files
 
 def write_module(face, title, accents, scene, res, base, user_config=True, extra="", editable=True,
-                 strings=None):
+                 strings=None, config_label="Accent"):
     """scene: list of scene XML children, or a function accent index -> list (per-flavour scenes)."""
     for d in ("values", "xml", "drawable-nodpi"):
         os.makedirs(os.path.join(res, d), exist_ok=True)
@@ -2280,7 +2393,7 @@ def write_module(face, title, accents, scene, res, base, user_config=True, extra
 <!-- Generated by tools/gen_watchfaces.py -->
 <resources>
     <string name="app_name">{title}</string>
-    <string name="accent_label">Accent</string>
+    <string name="accent_label">{config_label}</string>
 {labels}
 </resources>
 """)
@@ -2314,3 +2427,4 @@ if __name__ == "__main__":
     stack()
     terminal()
     commit_grid()
+    silhouette()

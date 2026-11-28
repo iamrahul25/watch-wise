@@ -1,8 +1,10 @@
 package com.nightwise.watchwise.ui
 
+import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,7 +27,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -42,6 +46,7 @@ import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import com.nightwise.watchwise.faces.Accent
 import com.nightwise.watchwise.faces.FacePrefs
 import com.nightwise.watchwise.faces.FacePusher
 import com.nightwise.watchwise.faces.HealthData
@@ -175,7 +180,7 @@ fun FaceDetailScreen(face: WatchFace) {
             item {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        "Accent",
+                        face.optionKind.replaceFirstChar { it.uppercase() },
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp, bottom = 6.dp),
@@ -183,8 +188,8 @@ fun FaceDetailScreen(face: WatchFace) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         face.accents.forEach { option ->
                             AccentSwatch(
-                                color = Color(option.color),
-                                name = option.name,
+                                face = face,
+                                option = option,
                                 selected = option.color == accent,
                                 onClick = {
                                     accent = option.color
@@ -225,8 +230,13 @@ fun FaceDetailScreen(face: WatchFace) {
 }
 
 @Composable
-private fun AccentSwatch(color: Color, name: String, selected: Boolean, onClick: () -> Unit) {
-    // 44dp touch target with a 28dp swatch; a white ring marks the selected colour.
+private fun AccentSwatch(face: WatchFace, option: Accent, selected: Boolean, onClick: () -> Unit) {
+    // 44dp touch target with a 28-32dp swatch; a white ring marks the selected option.
+    val assets = LocalContext.current.assets
+    val picture = remember(face, option) {
+        if (!face.hasPictures) null
+        else assets.open(face.pictureAsset(option)).use { BitmapFactory.decodeStream(it) }.asImageBitmap()
+    }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -234,7 +244,7 @@ private fun AccentSwatch(color: Color, name: String, selected: Boolean, onClick:
             .clickable(role = Role.RadioButton, onClick = onClick)
             .semantics {
                 this.selected = selected
-                contentDescription = "$name accent"
+                contentDescription = "${option.name} ${face.optionKind}"
             },
     ) {
         Box(
@@ -242,10 +252,14 @@ private fun AccentSwatch(color: Color, name: String, selected: Boolean, onClick:
                 .size(38.dp)
                 .border(2.dp, if (selected) Color.White else Color.Transparent, CircleShape),
         )
-        Box(
-            Modifier
-                .size(28.dp)
-                .background(color, CircleShape),
-        )
+        if (picture != null) {
+            Image(picture, contentDescription = null, modifier = Modifier.size(32.dp).clip(CircleShape))
+        } else {
+            Box(
+                Modifier
+                    .size(28.dp)
+                    .background(Color(option.color), CircleShape),
+            )
+        }
     }
 }
