@@ -5,4 +5,7 @@
     <string name="accent_label">Picture</string>
     <string name="accent_woman">Woman</string>
     <string name="accent_man">Man</string>
+    <string name="accent_tender">Tender</string>
+    <string name="accent_close">Close</string>
+    <string name="accent_love">Love</string>
 </resources>

@@ -1,0 +1,26 @@
+{
+ "violet": {
+  "time": "#fdfdfd",
+  "date": "#d9d9da",
+  "rule": "#c8c5c6",
+  "text": "#e1e0e1"
+ },
+ "cyan": {
+  "time": "#fdfdfd",
+  "date": "#d9d9da",
+  "rule": "#c8c5c6",
+  "text": "#e1e0e1"
+ },
+ "amber": {
+  "time": "#fdfdfd",
+  "date": "#d9d9da",
+  "rule": "#c8c5c6",
+  "text": "#e1e0e1"
+ },
+ "mint": {
+  "time": "#fdfdfd",
+  "date": "#d9d9da",
+  "rule": "#c8c5c6",
+  "text": "#e1e0e1"
+ }
+}

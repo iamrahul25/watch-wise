@@ -37,6 +37,7 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.compose.runtime.rememberCoroutineScope
+import com.nightwise.watchwise.faces.FaceCategory
 import com.nightwise.watchwise.faces.FacePusher
 import com.nightwise.watchwise.faces.InstalledFace
 import com.nightwise.watchwise.faces.WatchFace
@@ -62,15 +63,23 @@ fun FaceListScreen(onOpen: (WatchFace) -> Unit) {
                     Text("Watch faces")
                 }
             }
-            items(WatchFace.entries.size) { index ->
-                val face = WatchFace.entries[index]
-                FaceCard(
-                    face = face,
-                    isActive = installed?.let { it.face == face && it.isActive } == true,
-                    onClick = { onOpen(face) },
-                    modifier = Modifier.transformedHeight(this, spec),
-                    transformation = SurfaceTransformation(spec),
-                )
+            FaceCategory.entries.forEach { category ->
+                item {
+                    ListHeader(modifier = Modifier.transformedHeight(this, spec)) {
+                        Text(category.title, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                val faces = category.faces
+                items(faces.size) { index ->
+                    val face = faces[index]
+                    FaceCard(
+                        face = face,
+                        isActive = installed?.let { it.face == face && it.isActive } == true,
+                        onClick = { onOpen(face) },
+                        modifier = Modifier.transformedHeight(this, spec),
+                        transformation = SurfaceTransformation(spec),
+                    )
+                }
             }
         }
     }

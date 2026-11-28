@@ -6,6 +6,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +38,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.nightwise.watchwise.faces.FaceCategory
 import com.nightwise.watchwise.faces.WatchFace
 import com.nightwise.watchwise.link.RemoteFace
 import com.nightwise.watchwise.mobile.CompanionViewModel
@@ -77,6 +83,8 @@ private fun FaceGrid(
     onOpen: (WatchFace) -> Unit,
 ) {
     val link = model.link
+    var filter by rememberSaveable { mutableStateOf<String?>(null) }
+    val shown = filter?.let { name -> FaceCategory.entries.firstOrNull { it.name == name } }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(150.dp),
         state = grid,
@@ -97,7 +105,7 @@ private fun FaceGrid(
                 Modifier.fillMaxWidth().padding(top = 16.dp, start = 4.dp, end = 4.dp),
                 verticalAlignment = Alignment.Bottom,
             ) {
-                Text("All faces", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                Text("Faces", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 Text(
                     "${WatchFace.entries.size} designs",
                     style = MaterialTheme.typography.bodyMedium,
@@ -105,9 +113,57 @@ private fun FaceGrid(
                 )
             }
         }
-        items(WatchFace.entries, key = { it.id }) { face ->
-            FaceCard(model, face, installed, onClick = { onOpen(face) })
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            CategoryChips(shown) { filter = it?.name }
         }
+        val categories = shown?.let { listOf(it) } ?: FaceCategory.entries
+        categories.forEach { category ->
+            item(span = { GridItemSpan(maxLineSpan) }, key = "category_${category.name}") {
+                CategoryHeader(category)
+            }
+            items(category.faces, key = { it.id }) { face ->
+                FaceCard(model, face, installed, onClick = { onOpen(face) })
+            }
+        }
+    }
+}
+
+/** "All" plus one chip per category; picking one shows only its faces. */
+@Composable
+private fun CategoryChips(selected: FaceCategory?, onSelect: (FaceCategory?) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Chip("All", WatchFace.entries.size, selected == null) { onSelect(null) }
+        FaceCategory.entries.forEach { category ->
+            Chip(category.title, category.faces.size, selected == category) { onSelect(category) }
+        }
+    }
+}
+
+@Composable
+private fun Chip(label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .clip(CircleShape)
+            .background(if (selected) TextPrimary else Surface1)
+            .border(1.dp, if (selected) TextPrimary else Hairline, CircleShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = if (selected) Ink else TextPrimary)
+        Spacer(Modifier.width(6.dp))
+        Text("$count", style = MaterialTheme.typography.labelMedium, color = if (selected) Ink.copy(alpha = 0.6f) else TextMuted)
+    }
+}
+
+@Composable
+private fun CategoryHeader(category: FaceCategory) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp, start = 4.dp, end = 4.dp)) {
+        Text(category.title, style = MaterialTheme.typography.titleMedium)
+        Text(category.blurb, style = MaterialTheme.typography.bodySmall, color = TextMuted)
     }
 }
 

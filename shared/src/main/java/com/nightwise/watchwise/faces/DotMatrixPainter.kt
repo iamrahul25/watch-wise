@@ -1,74 +1,33 @@
 package com.nightwise.watchwise.faces
 
 import android.content.res.AssetManager
-import android.graphics.Bitmap
-import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.Rect
-import android.graphics.Shader
-import androidx.core.graphics.PathParser
-import java.text.NumberFormat
+import android.graphics.Typeface
 import java.time.ZonedDateTime
-import java.util.Locale
-import kotlin.math.roundToInt
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * 03 · Dot Matrix — fitness.
  *
- * Interactive: dotted LED background, Doto font time with accent seconds, three stats
- * (steps, kcal, heart rate) with line icons, and a 10-block battery bar.
+ * An LED board centred on the screen: HH:MM in big 5 x 7 dot digits (hours white, minutes in
+ * the accent) over their unlit dots, a ring of 60 dots counting the seconds, the battery and
+ * date above and steps, calories and heart rate below.
  *
- * Ambient (always-on, AMOLED): no dotted background and no seconds, lighter (thinner)
- * dots for the digits, everything dimmed.
+ * Ambient (always-on, AMOLED): thinner dots for the time, with only the date and the battery
+ * percentage, everything dimmed.
+ *
+ * Mirrors the Watch Face Format version from tools/gen_watchfaces.py (dot_matrix, DM_*).
  */
 class DotMatrixPainter(assets: AssetManager) : FacePainter {
 
     private val black = Fonts.get(assets, Fonts.DOTO, 900)
-    private val bold = Fonts.get(assets, Fonts.DOTO, 700)
-    private val light = Fonts.get(assets, Fonts.DOTO, 500)
 
-    private val datePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        letterSpacing = 0.08f
-        textAlign = Paint.Align.CENTER
-    }
-    private val timePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        letterSpacing = -0.02f
-        textAlign = Paint.Align.LEFT
-    }
-    private val secPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.LEFT }
-    private val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
-    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
-    private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2f // in the icons' 24-unit space
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
-    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-
-    // Lucide-style 24x24 line icons from the design.
-    private val stepsIcon: Path = PathParser.createPathFromPathData("M7 21l3-6 3 2v5M6 12l3-4 4 1 3 4").apply {
-        addCircle(13f, 4f, 2f, Path.Direction.CW)
-    }
-    private val flameIcon: Path =
-        PathParser.createPathFromPathData("M12 22c4 0 7-3 7-7 0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-4-2 2-5 5-5 8 0 4 3 7 7 7z")
-    private val pulseIcon: Path = PathParser.createPathFromPathData("M3 12h4l2-5 4 10 2-5h6")
-
-    private val numberFormat = NumberFormat.getIntegerInstance(Locale.US)
-
-    // Dotted background: radial-gradient(#1c1c1c 1.2px, transparent 1.6px) on a 9px grid.
-    private val gridTile: Bitmap = Bitmap.createBitmap(36, 36, Bitmap.Config.ARGB_8888).also { bmp ->
-        val c = Canvas(bmp)
-        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = GRID_DOT }
-        c.drawCircle(18f, 18f, 1.4f * 4, p) // tile is 4x the 9px cell
-    }
-    private val gridShader = BitmapShader(gridTile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
-    private val gridMatrix = Matrix()
+    private val dots = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val text = Paint(Paint.ANTI_ALIAS_FLAG)
 
     override fun draw(
         canvas: Canvas,
@@ -79,119 +38,171 @@ class DotMatrixPainter(assets: AssetManager) : FacePainter {
         ambient: Boolean,
     ) {
         val s = bounds.width() / DESIGN_SIZE
-        val cx = bounds.exactCenterX()
-        val cy = bounds.exactCenterY()
         canvas.drawColor(Color.BLACK)
+        canvas.save()
+        canvas.translate(bounds.left.toFloat(), bounds.top.toFloat())
+        canvas.scale(s, s)
 
         if (!ambient) {
-            gridMatrix.setScale(9f * s / 36f, 9f * s / 36f)
-            gridMatrix.postTranslate(bounds.left.toFloat(), bounds.top.toFloat())
-            gridShader.setLocalMatrix(gridMatrix)
-            gridPaint.shader = gridShader
-            canvas.drawRect(bounds, gridPaint)
-        }
-
-        val grey = if (ambient) AMBIENT_GREY else LABEL_GREY
-        val white = if (ambient) AMBIENT_WHITE else Color.WHITE
-        val iconColor = if (ambient) AMBIENT_GREY else accent
-
-        datePaint.typeface = bold
-        datePaint.textSize = 20 * s
-        datePaint.color = grey
-        timePaint.typeface = if (ambient) light else black
-        timePaint.textSize = 104 * s
-        timePaint.color = white
-        secPaint.typeface = black
-        secPaint.textSize = 28 * s
-        secPaint.color = accent
-        valuePaint.typeface = if (ambient) light else black
-        valuePaint.textSize = 22 * s
-        valuePaint.color = white
-        labelPaint.typeface = bold
-        labelPaint.textSize = 13 * s
-        labelPaint.color = grey
-
-        // Vertical layout (column, gap 10): date, time row, stats (+6), battery (+10).
-        val gap = 10 * s
-        val dateH = datePaint.lineHeight()
-        val timeH = 104 * 0.95f * s
-        val valueH = valuePaint.lineHeight()
-        val labelH = labelPaint.lineHeight()
-        val statsH = 20 * s + 4 * s + valueH + 4 * s + labelH
-        val batteryH = 8 * s
-        val total = dateH + gap + timeH + gap + 6 * s + statsH + gap + 10 * s + batteryH
-        var top = cy - total / 2
-
-        // Date: "SUN · NOV 22"
-        val date = "${time.dayShort()} · ${time.monthShort()} ${time.dayOfMonth}"
-        canvas.drawText(date, cx, datePaint.baselineInBox(top, dateH), datePaint)
-        top += dateH + gap
-
-        // Time row: HH:MM plus small seconds aligned to the bottom (margin-bottom 12).
-        val hm = "${time.displayHour(data.is24Hour).pad2()}:${time.minute.pad2()}"
-        val hmW = timePaint.measureText(hm)
-        if (ambient) {
-            canvas.drawText(hm, cx - hmW / 2, timePaint.baselineInBox(top, timeH), timePaint)
-        } else {
-            val ss = time.second.pad2()
-            val ssW = secPaint.measureText(ss)
-            val rowW = hmW + 4 * s + ssW
-            val x0 = cx - rowW / 2
-            canvas.drawText(hm, x0, timePaint.baselineInBox(top, timeH), timePaint)
-            val ssH = secPaint.lineHeight()
-            val ssTop = top + timeH - 12 * s - ssH
-            canvas.drawText(ss, x0 + hmW + 4 * s, secPaint.baselineInBox(ssTop, ssH), secPaint)
-        }
-        top += timeH + gap + 6 * s
-
-        // Stats grid: 3 equal columns, gap 18.
-        val stats = listOf(
-            Stat(stepsIcon, data.steps?.let { numberFormat.format(it) } ?: "--", "STEPS"),
-            Stat(flameIcon, data.calories?.let { numberFormat.format(it) } ?: "--", "KCAL"),
-            Stat(pulseIcon, data.heartRate?.toString() ?: "--", "BPM"),
-        )
-        val colW = stats.maxOf { maxOf(valuePaint.measureText(it.value), labelPaint.measureText(it.label), 20 * s) }
-        val colGap = 18 * s
-        iconPaint.color = iconColor
-        stats.forEachIndexed { i, stat ->
-            val colCx = cx + (i - 1) * (colW + colGap)
-            var y = top
-            canvas.save()
-            canvas.translate(colCx - 10 * s, y)
-            canvas.scale(20 * s / 24f, 20 * s / 24f)
-            canvas.drawPath(stat.icon, iconPaint)
-            canvas.restore()
-            y += 20 * s + 4 * s
-            canvas.drawText(stat.value, colCx, valuePaint.baselineInBox(y, valueH), valuePaint)
-            y += valueH + 4 * s
-            canvas.drawText(stat.label, colCx, labelPaint.baselineInBox(y, labelH), labelPaint)
-        }
-        top += statsH + gap + 10 * s
-
-        // Battery: 10 squares of 8px, gap 4.
-        val filled = (data.battery / 10f).roundToInt().coerceIn(0, 10)
-        val sq = 8 * s
-        val sqGap = 4 * s
-        var x = cx - (10 * sq + 9 * sqGap) / 2
-        for (i in 0 until 10) {
-            fillPaint.color = when {
-                i >= filled -> if (ambient) AMBIENT_EMPTY else EMPTY_BLOCK
-                ambient -> AMBIENT_GREY
-                else -> Color.WHITE
+            for (first in DIGIT_COLUMNS) {
+                for (row in 0 until 7) for (col in 0 until 5) timeDot(canvas, first + col, row, PITCH_DOT, UNLIT)
             }
-            canvas.drawRect(x, top, x + sq, top + sq, fillPaint)
-            x += sq + sqGap
+            secondsRing(canvas, time.second, accent)
+        }
+        time(canvas, time, data, accent, ambient)
+        date(canvas, time, accent, ambient)
+        words(canvas, "${data.battery}%", CENTRE, 83f, 21f, if (ambient) AMBIENT_GREY else PERCENT_GREY)
+        if (!ambient) {
+            battery(canvas, data.battery, accent)
+            stats(canvas, data, accent)
+        }
+        canvas.restore()
+    }
+
+    private fun time(canvas: Canvas, time: ZonedDateTime, data: FaceData, accent: Int, ambient: Boolean) {
+        val value = time.displayHour(data.is24Hour).pad2() + time.minute.pad2()
+        val diameter = if (ambient) AMBIENT_DOT else PITCH_DOT
+        value.forEachIndexed { k, digit ->
+            val color = when {
+                ambient -> if (k < 2) AMBIENT_HOURS else AMBIENT_MINUTES
+                k < 2 -> Color.WHITE
+                else -> accent
+            }
+            DIGITS[digit - '0'].forEachIndexed { row, line ->
+                line.forEachIndexed { col, cell ->
+                    if (cell == '#') timeDot(canvas, DIGIT_COLUMNS[k] + col, row, diameter, color)
+                }
+            }
+        }
+        val colon = if (ambient) AMBIENT_COLON else LABEL_GREY
+        timeDot(canvas, 12, 2, diameter, colon)
+        timeDot(canvas, 12, 4, diameter, colon)
+    }
+
+    /** One dot of the time grid: column 12 is the middle of the screen, as is row 3. */
+    private fun timeDot(canvas: Canvas, column: Int, row: Int, diameter: Float, color: Int) =
+        dot(canvas, CENTRE + (column - 12) * PITCH, CENTRE + (row - 3) * PITCH, diameter, color)
+
+    private fun dot(canvas: Canvas, x: Float, y: Float, diameter: Float, color: Int) {
+        dots.color = color
+        canvas.drawCircle(x, y, diameter / 2, dots)
+    }
+
+    private fun secondsRing(canvas: Canvas, second: Int, accent: Int) {
+        for (i in 0 until 60) {
+            val angle = i * Math.PI / 30
+            val x = CENTRE + (RING_RADIUS * sin(angle)).toFloat()
+            val y = CENTRE - (RING_RADIUS * cos(angle)).toFloat()
+            val diameter = if (i == second) 10f else if (i % 5 == 0) 7.5f else 5f
+            val color = if (i == second) Color.WHITE else if (i < second) accent else RING_UNLIT
+            dot(canvas, x, y, diameter, color)
         }
     }
 
-    private class Stat(val icon: Path, val value: String, val label: String)
+    /** "SUN 22 NOV" with the day name in the accent. */
+    private fun date(canvas: Canvas, time: ZonedDateTime, accent: Int, ambient: Boolean) {
+        val column = 0.6f * 29
+        val left = CENTRE - 10 * column / 2
+        val alpha = if (ambient) 150 else 255
+        words(canvas, time.dayShort(), left, 122f, 29f, accent, black, Paint.Align.LEFT, alpha)
+        val rest = "${time.dayOfMonth.pad2()} ${time.monthShort()}"
+        words(canvas, rest, left + 4 * column, 122f, 29f, Color.WHITE, black, Paint.Align.LEFT, alpha)
+    }
+
+    private fun battery(canvas: Canvas, percent: Int, accent: Int) {
+        for (i in 0 until 10) {
+            val color = if (percent >= i * 10 + 5) accent else BATTERY_UNLIT
+            dot(canvas, CENTRE + (i - 4.5f) * 13, 58f, 8f, color)
+        }
+    }
+
+    private fun stats(canvas: Canvas, data: FaceData, accent: Int) {
+        val values = listOf(data.steps, data.calories, data.heartRate)
+        for (i in 0 until 3) {
+            val x = STAT_COLUMNS[i]
+            ICONS[i].forEachIndexed { row, line ->
+                line.forEachIndexed { col, cell ->
+                    if (cell == '#') {
+                        dot(canvas, x + (col - 3) * ICON_PITCH, 318f + (row - 3) * ICON_PITCH, ICON_PITCH * 0.92f, accent)
+                    }
+                }
+            }
+            number(canvas, values[i]?.toString() ?: "--", x, 354f)
+            words(canvas, LABELS[i], x, 386f, 17f, LABEL_GREY)
+        }
+    }
+
+    /** A reading in small dot digits, centred on ([x], [y]). */
+    private fun number(canvas: Canvas, value: String, x: Float, y: Float) {
+        val left = x - (value.length * 6 - 1) * VALUE_PITCH / 2
+        value.forEachIndexed { k, ch ->
+            val rows = if (ch == '-') DASH else DIGITS[ch - '0']
+            rows.forEachIndexed { row, line ->
+                line.forEachIndexed { col, cell ->
+                    if (cell == '#') {
+                        val dx = left + (k * 6 + col + 0.5f) * VALUE_PITCH
+                        dot(canvas, dx, y + (row - 3) * VALUE_PITCH, VALUE_PITCH * PITCH_DOT / PITCH, Color.WHITE)
+                    }
+                }
+            }
+        }
+    }
+
+    /** Text centred on [y] (by its capital height), starting at or centred on [x]. */
+    private fun words(
+        canvas: Canvas,
+        value: String,
+        x: Float,
+        y: Float,
+        size: Float,
+        color: Int,
+        font: Typeface = black,
+        align: Paint.Align = Paint.Align.CENTER,
+        alpha: Int = 255,
+    ) {
+        text.typeface = font
+        text.textSize = size
+        text.textAlign = align
+        text.color = color
+        text.alpha = alpha
+        canvas.drawText(value, x, y + 0.35f * size, text)
+    }
 
     private companion object {
-        val GRID_DOT = Color.parseColor("#1c1c1c")
+        const val CENTRE = 225f
+        const val PITCH = 15f
+        const val PITCH_DOT = 12.6f
+        const val AMBIENT_DOT = 8f
+        const val RING_RADIUS = 213.0
+        const val ICON_PITCH = 4.4f
+        const val VALUE_PITCH = 3f
+        val DASH = "..... ..... ..... .###. ..... ..... .....".split(' ')
+        val DIGIT_COLUMNS = intArrayOf(0, 6, 14, 20)
+        val STAT_COLUMNS = floatArrayOf(127f, 225f, 323f)
+        val LABELS = arrayOf("STEPS", "KCAL", "BPM")
+
+        // The 5 x 7 digits and 7 x 7 icons of DM_DIGITS / DM_ICONS in the generator.
+        val DIGITS = listOf(
+            ".###. #...# #...# #...# #...# #...# .###.", "..#.. .##.. ..#.. ..#.. ..#.. ..#.. .###.",
+            ".###. #...# ....# ...#. ..#.. .#... #####", "####. ....# ....# .###. ....# ....# ####.",
+            "...#. ..##. .#.#. #..#. ##### ...#. ...#.", "##### #.... ####. ....# ....# #...# .###.",
+            "..##. .#... #.... ####. #...# #...# .###.", "##### ....# ...#. ..#.. .#... .#... .#...",
+            ".###. #...# #...# .###. #...# #...# .###.", ".###. #...# #...# .#### ....# ...#. .##..",
+        ).map { it.split(' ') }
+        val ICONS = listOf(
+            "...##.. ...##.. ..###.. .#.##.. ...###. ..#..#. .#...#.",
+            "...#... ..##... ..###.. .####.# ##.#### ##..### .#####.",
+            ".##.##. ####### ####### ####### .#####. ..###.. ...#...",
+        ).map { it.split(' ') }
+
+        val UNLIT = Color.parseColor("#161616")
+        val RING_UNLIT = Color.parseColor("#242424")
+        val BATTERY_UNLIT = Color.parseColor("#262626")
         val LABEL_GREY = Color.parseColor("#8c8c8c")
-        val EMPTY_BLOCK = Color.parseColor("#2a2a2a")
+        val PERCENT_GREY = Color.parseColor("#c4c4c4")
         val AMBIENT_GREY = Color.parseColor("#6a6a6a")
-        val AMBIENT_WHITE = Color.parseColor("#c8c8c8")
-        val AMBIENT_EMPTY = Color.parseColor("#1a1a1a")
+        val AMBIENT_HOURS = Color.parseColor("#b4b4b4")
+        val AMBIENT_MINUTES = Color.parseColor("#8a8a8a")
+        val AMBIENT_COLON = Color.parseColor("#5a5a5a")
     }
 }

@@ -5,8 +5,11 @@
   <Metadata key="PREVIEW_TIME" value="10:08:32"/>
   <UserConfigurations>
     <ListConfiguration id="picture" displayName="accent_label" defaultValue="1">
-      <ListOption id="0" displayName="accent_woman" icon="photo_woman"/>
-      <ListOption id="1" displayName="accent_man" icon="photo_man"/>
+      <ListOption id="0" displayName="accent_woman" icon="thumb_woman"/>
+      <ListOption id="1" displayName="accent_man" icon="thumb_man"/>
+      <ListOption id="2" displayName="accent_tender" icon="thumb_tender"/>
+      <ListOption id="3" displayName="accent_close" icon="thumb_close"/>
+      <ListOption id="4" displayName="accent_love" icon="thumb_love"/>
     </ListConfiguration>
   </UserConfigurations>
   <Scene backgroundColor="#ff000000">
@@ -18,6 +21,15 @@
         </ListOption>
         <ListOption id="1">
           <PartImage x="0" y="0" width="450" height="450"><Image resource="photo_man"/></PartImage>
+        </ListOption>
+        <ListOption id="2">
+          <PartImage x="0" y="0" width="450" height="450"><Image resource="photo_tender"/></PartImage>
+        </ListOption>
+        <ListOption id="3">
+          <PartImage x="0" y="0" width="450" height="450"><Image resource="photo_close"/></PartImage>
+        </ListOption>
+        <ListOption id="4">
+          <PartImage x="0" y="0" width="450" height="450"><Image resource="photo_love"/></PartImage>
         </ListOption>
       </ListConfiguration>
     </Group>

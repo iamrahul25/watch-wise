@@ -39,8 +39,8 @@
   </BitmapFonts>
   <Scene backgroundColor="#ff000000">
     <Condition>
-      <Expressions><Expression name="h24_59"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
-      <Compare expression="h24_59">
+      <Expressions><Expression name="h24_0"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
+      <Compare expression="h24_0">
         <PartText x="89" y="117" width="98" height="109" alpha="255" tintColor="#fff2f4f7">
           <Variant mode="AMBIENT" target="alpha" value="0"/>
           <Text align="START">
@@ -82,8 +82,8 @@
       </Text>
     </PartText>
     <Condition>
-      <Expressions><Expression name="h24_60"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
-      <Compare expression="h24_60">
+      <Expressions><Expression name="h24_1"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
+      <Compare expression="h24_1">
         <PartText x="89" y="117" width="98" height="109" alpha="0" tintColor="#ffd0d0d0">
           <Variant mode="AMBIENT" target="alpha" value="255"/>
           <Text align="START">

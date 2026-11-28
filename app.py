@@ -11,6 +11,8 @@ Menu:
   8. Show connected devices.
   9. Uninstall the app and its watch faces from a watch.
  10. Build and run the phone companion with the watch (phone emulator or real phone).
+ 11. Build and run only the phone app on a phone emulator (no watch needed).
+ 12. Build and run only the phone app on a real phone connected over adb.
   0. Exit.
 """
 
@@ -53,9 +55,14 @@ WATCH_FACES = {
     "shellwindow": ("Shell Window", ["blue", "green", "amber", "purple"]),
     "shellfull": ("Shell Full", ["blue", "green", "amber", "purple"]),
     "stack": ("Stack", ["violet", "cyan", "orange", "lime"]),
-    "terminal": ("Terminal", ["orange", "cyan", "lime", "violet"]),
+    "terminal": ("Outline", ["orange", "cyan", "lime", "violet"]),
     "commitgrid": ("Commit Grid", ["green", "blue", "purple", "orange"]),
-    "silhouette": ("Silhouette", ["woman", "man"]),
+    "silhouette": ("Silhouette", ["woman", "man", "tender", "close", "love"]),
+    "java": ("Java", ["orange", "pink", "cyan", "lime"]),
+    "sql": ("SQL", ["cyan", "violet", "orange", "pink"]),
+    "spaceterminal": ("Space Terminal", ["violet", "cyan", "amber", "mint"]),
+    "orbit": ("Orbit", ["orange", "blue", "lime", "white"]),
+    "retropixel": ("Retro Pixel", ["violet", "blue", "sunset", "teal"]),
 }
 
 
@@ -348,7 +355,7 @@ def start_emulator(avd):
         return None
     print(f"[emulator] {serial} is up, waiting for boot to finish ...")
     if not wait_for_boot(serial):
-        print("Emulator did not finish booting in time. Try option 1 again once it is on the watch face.")
+        print("Emulator did not finish booting in time. Run the same option again once it has booted.")
         return None
     return serial
 
@@ -441,6 +448,67 @@ def run_companion():
         print("       (Run this option again after restarting an emulator or force-stopping the watch app.)")
     else:
         print("[done] Open on the phone. It controls a paired watch that has Watch Wise installed (option 2).")
+
+
+# ---------------------------------------------------------------- phone app only
+
+def build_phone_apk():
+    print("\n[build] Running :mobile:assembleDebug ...")
+    try:
+        run(tool_cmd(GRADLEW, ":mobile:assembleDebug"))
+    except subprocess.CalledProcessError:
+        print("[build] FAILED. Fix the errors above and try again.")
+        return False
+    if not os.path.isfile(PHONE_APK):
+        print(f"[build] APK not found at {PHONE_APK}")
+        return False
+    print(f"[build] OK: {PHONE_APK}")
+    return True
+
+
+def install_and_launch_phone(serial):
+    adb = [tool("adb"), "-s", serial]
+    print(f"[install] Installing the phone app on {serial} ...")
+    run(adb + ["install", "-r", PHONE_APK])
+    print("[launch] Starting Watch Wise ...")
+    run(adb + ["shell", "am", "start", "-n", PHONE_COMPONENT], capture=True)
+    print("[done] Watch Wise is open on the phone.")
+
+
+def run_phone_on_emulator():
+    """Phone app only, on a phone emulator (started if none is running)."""
+    running = [d for d in connected_devices() if d.startswith("emulator-") and not is_watch(d)]
+    if running:
+        serial = ask_choice(running, "running phone emulator")
+        if serial and build_phone_apk():
+            install_and_launch_phone(serial)
+        return
+    avds = [a for a in list_avds() if not is_wear_avd(a)]
+    if not avds:
+        print("\nNo phone emulator found. Create one in Android Studio > Device Manager.")
+        return
+    avd = ask_choice(avds, "phone emulator")
+    if not avd or not build_phone_apk():
+        return
+    serial = start_emulator(avd)
+    if serial:
+        install_and_launch_phone(serial)
+
+
+def run_phone_on_device():
+    """Phone app only, on a real phone connected over adb."""
+    phones = [d for d in connected_devices() if not d.startswith("emulator-") and not is_watch(d)]
+    if not phones:
+        print("\nNo real phone found over adb.")
+        print("Connect it by USB (or Wireless debugging) with Developer options > USB debugging")
+        print("turned on, and accept the 'Allow debugging' prompt on the phone.")
+        return
+    serial = ask_choice(phones, "phone")
+    if not serial:
+        return
+    print(f"\nPhone: {serial} ({device_model(serial)})")
+    if build_phone_apk():
+        install_and_launch_phone(serial)
 
 
 # ---------------------------------------------------------------- real watch
@@ -760,6 +828,8 @@ def menu():
     print(" 8. Show connected devices")
     print(" 9. Uninstall app + watch faces from a watch")
     print("10. Run phone companion + watch")
+    print("11. Run phone app only in Emulator phone")
+    print("12. Run phone app only in Connected phone (adb)")
     print(" 0. Exit")
     return input("Select an option: ").strip()
 
@@ -775,6 +845,8 @@ ACTIONS = {
     "8": show_devices,
     "9": uninstall_app,
     "10": run_companion,
+    "11": run_phone_on_emulator,
+    "12": run_phone_on_device,
 }
 
 

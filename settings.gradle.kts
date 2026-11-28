@@ -26,4 +26,4 @@ rootProject.name = "WatchWise"
 // :app = Wear OS app, :mobile = phone companion, :shared = faces + the phone <-> watch protocol.
 include(":app", ":mobile", ":shared")
 // Watch Face Format faces pushed by the app (see tools/gen_watchfaces.py).
-include(":watchfaces:monostack", ":watchfaces:dotmatrix", ":watchfaces:emberforest", ":watchfaces:shellwindow", ":watchfaces:shellfull", ":watchfaces:stack", ":watchfaces:terminal", ":watchfaces:commitgrid", ":watchfaces:silhouette")
+include(":watchfaces:monostack", ":watchfaces:dotmatrix", ":watchfaces:emberforest", ":watchfaces:shellwindow", ":watchfaces:shellfull", ":watchfaces:stack", ":watchfaces:terminal", ":watchfaces:commitgrid", ":watchfaces:silhouette", ":watchfaces:java", ":watchfaces:sql", ":watchfaces:spaceterminal", ":watchfaces:retropixel", ":watchfaces:orbit")

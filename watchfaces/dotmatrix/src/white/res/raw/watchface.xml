@@ -12,244 +12,1656 @@
     </ColorConfiguration>
   </UserConfigurations>
   <Scene backgroundColor="#ff000000">
-    <PartImage x="0" y="0" width="450" height="450">
+    <Group name="board" x="0" y="0" width="450" height="450" alpha="255">
       <Variant mode="AMBIENT" target="alpha" value="0"/>
-      <Image resource="dot_grid"/>
-    </PartImage>
-    <PartText x="0" y="102" width="450" height="24" alpha="255">
-        <Variant mode="AMBIENT" target="alpha" value="190"/>
-      <Text align="CENTER">
-        <Font family="doto_bold" size="20" color="#ff8c8c8c" letterSpacing="0.08"><Upper><Template>%s · %s %s<Parameter expression="[DAY_OF_WEEK_S]"/><Parameter expression="[MONTH_S]"/><Parameter expression="[DAY]"/></Template></Upper></Font>
-      </Text>
-    </PartText>
-    <Condition>
-      <Expressions><Expression name="h24_2"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
-      <Compare expression="h24_2">
-        <PartText x="49" y="136" width="314" height="99" alpha="255">
-            <Variant mode="AMBIENT" target="alpha" value="0"/>
-          <Text align="CENTER">
-            <Font family="doto_black" size="104" color="#ffffffff" letterSpacing="-0.02"><Template>%s:%s<Parameter expression="[HOUR_0_23_Z]"/><Parameter expression="[MINUTE_Z]"/></Template></Font>
-          </Text>
-        </PartText>
-      </Compare>
-      <Default>
-        <PartText x="49" y="136" width="314" height="99" alpha="255">
-            <Variant mode="AMBIENT" target="alpha" value="0"/>
-          <Text align="CENTER">
-            <Font family="doto_black" size="104" color="#ffffffff" letterSpacing="-0.02"><Template>%s:%s<Parameter expression="[HOUR_1_12_Z]"/><Parameter expression="[MINUTE_Z]"/></Template></Font>
-          </Text>
-        </PartText>
-      </Default>
-    </Condition>
-    <PartText x="355" y="189" width="46" height="34" alpha="255" tintColor="[CONFIGURATION.accent]">
-        <Variant mode="AMBIENT" target="alpha" value="0"/>
-      <Text align="CENTER">
-        <Font family="doto_black" size="28" color="#ffffffff"><Template>%s<Parameter expression="[SECOND_Z]"/></Template></Font>
-      </Text>
-    </PartText>
-    <Condition>
-      <Expressions><Expression name="h24_3"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
-      <Compare expression="h24_3">
-        <PartText x="0" y="136" width="450" height="99" alpha="0">
-            <Variant mode="AMBIENT" target="alpha" value="255"/>
-          <Text align="CENTER">
-            <Font family="doto_medium" size="104" color="#ffc8c8c8" letterSpacing="-0.02"><Template>%s:%s<Parameter expression="[HOUR_0_23_Z]"/><Parameter expression="[MINUTE_Z]"/></Template></Font>
-          </Text>
-        </PartText>
-      </Compare>
-      <Default>
-        <PartText x="0" y="136" width="450" height="99" alpha="0">
-            <Variant mode="AMBIENT" target="alpha" value="255"/>
-          <Text align="CENTER">
-            <Font family="doto_medium" size="104" color="#ffc8c8c8" letterSpacing="-0.02"><Template>%s:%s<Parameter expression="[HOUR_1_12_Z]"/><Parameter expression="[MINUTE_Z]"/></Template></Font>
-          </Text>
-        </PartText>
-      </Default>
-    </Condition>
-    <Group name="stats" x="0" y="0" width="450" height="450" alpha="255">
-      <Variant mode="AMBIENT" target="alpha" value="150"/>
-      <PartImage x="131" y="250" width="20" height="20" tintColor="[CONFIGURATION.accent]">
-        <Image resource="icon_steps"/>
-      </PartImage>
-      <PartText x="98" y="274" width="86" height="26" alpha="255">
-        <Text align="CENTER">
-          <Font family="doto_black" size="22" color="#ffffffff"><Template>%d<Parameter expression="[STEP_COUNT]"/></Template></Font>
-        </Text>
-      </PartText>
-      <PartText x="98" y="305" width="86" height="16" alpha="255">
-        <Text align="CENTER">
-          <Font family="doto_bold" size="13" color="#ff8c8c8c">STEPS</Font>
-        </Text>
-      </PartText>
-      <PartImage x="215" y="250" width="20" height="20" tintColor="[CONFIGURATION.accent]">
-        <Image resource="icon_flame"/>
-      </PartImage>
-      <PartText x="182" y="274" width="86" height="26" alpha="255">
-        <Text align="CENTER">
-          <Font family="doto_black" size="22" color="#ffffffff"><Template>%d<Parameter expression="floor([STEP_COUNT] * 0.04)"/></Template></Font>
-        </Text>
-      </PartText>
-      <PartText x="182" y="305" width="86" height="16" alpha="255">
-        <Text align="CENTER">
-          <Font family="doto_bold" size="13" color="#ff8c8c8c">KCAL</Font>
-        </Text>
-      </PartText>
-      <PartImage x="299" y="250" width="20" height="20" tintColor="[CONFIGURATION.accent]">
-        <Image resource="icon_pulse"/>
+      <PartImage x="0" y="0" width="450" height="450">
+        <Image resource="unlit"/>
       </PartImage>
       <Condition>
-        <Expressions><Expression name="has_hr"><![CDATA[[HEART_RATE] > 0]]></Expression></Expressions>
-        <Compare expression="has_hr">
-          <PartText x="266" y="274" width="86" height="26" alpha="255">
-            <Text align="CENTER">
-              <Font family="doto_black" size="22" color="#ffffffff"><Template>%d<Parameter expression="round([HEART_RATE])"/></Template></Font>
+        <Expressions><Expression name="now0"><![CDATA[[SECOND] == 0]]></Expression></Expressions>
+        <Compare expression="now0">
+          <PartDraw x="219" y="6" width="13" height="13">
+            <Ellipse x="1" y="1" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past0"><![CDATA[[SECOND] > 0]]></Expression></Expressions>
+            <Compare expression="past0">
+              <PartDraw x="220" y="7" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.25" y="1.25" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="220" y="7" width="11" height="11">
+                <Ellipse x="1.25" y="1.25" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now1"><![CDATA[[SECOND] == 1]]></Expression></Expressions>
+        <Compare expression="now1">
+          <PartDraw x="241" y="7" width="13" height="13">
+            <Ellipse x="1.26" y="1.17" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past1"><![CDATA[[SECOND] > 1]]></Expression></Expressions>
+            <Compare expression="past1">
+              <PartDraw x="243" y="9" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.76" y="1.67" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="243" y="9" width="8" height="8">
+                <Ellipse x="1.76" y="1.67" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now2"><![CDATA[[SECOND] == 2]]></Expression></Expressions>
+        <Compare expression="now2">
+          <PartDraw x="263" y="10" width="13" height="13">
+            <Ellipse x="1.29" y="1.65" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past2"><![CDATA[[SECOND] > 2]]></Expression></Expressions>
+            <Compare expression="past2">
+              <PartDraw x="265" y="13" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.79" y="1.15" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="265" y="13" width="8" height="8">
+                <Ellipse x="1.79" y="1.15" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now3"><![CDATA[[SECOND] == 3]]></Expression></Expressions>
+        <Compare expression="now3">
+          <PartDraw x="284" y="16" width="13" height="13">
+            <Ellipse x="1.82" y="1.42" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past3"><![CDATA[[SECOND] > 3]]></Expression></Expressions>
+            <Compare expression="past3">
+              <PartDraw x="287" y="18" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.32" y="1.92" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="287" y="18" width="8" height="8">
+                <Ellipse x="1.32" y="1.92" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now4"><![CDATA[[SECOND] == 4]]></Expression></Expressions>
+        <Compare expression="now4">
+          <PartDraw x="305" y="24" width="13" height="13">
+            <Ellipse x="1.63" y="1.41" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past4"><![CDATA[[SECOND] > 4]]></Expression></Expressions>
+            <Compare expression="past4">
+              <PartDraw x="308" y="26" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.13" y="1.91" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="308" y="26" width="8" height="8">
+                <Ellipse x="1.13" y="1.91" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now5"><![CDATA[[SECOND] == 5]]></Expression></Expressions>
+        <Compare expression="now5">
+          <PartDraw x="325" y="34" width="13" height="13">
+            <Ellipse x="1.5" y="1.54" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past5"><![CDATA[[SECOND] > 5]]></Expression></Expressions>
+            <Compare expression="past5">
+              <PartDraw x="326" y="35" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.75" y="1.79" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="326" y="35" width="11" height="11">
+                <Ellipse x="1.75" y="1.79" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now6"><![CDATA[[SECOND] == 6]]></Expression></Expressions>
+        <Compare expression="now6">
+          <PartDraw x="344" y="46" width="13" height="13">
+            <Ellipse x="1.2" y="1.68" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past6"><![CDATA[[SECOND] > 6]]></Expression></Expressions>
+            <Compare expression="past6">
+              <PartDraw x="346" y="49" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.7" y="1.18" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="346" y="49" width="8" height="8">
+                <Ellipse x="1.7" y="1.18" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now7"><![CDATA[[SECOND] == 7]]></Expression></Expressions>
+        <Compare expression="now7">
+          <PartDraw x="361" y="60" width="13" height="13">
+            <Ellipse x="1.52" y="1.71" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past7"><![CDATA[[SECOND] > 7]]></Expression></Expressions>
+            <Compare expression="past7">
+              <PartDraw x="364" y="63" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.02" y="1.21" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="364" y="63" width="8" height="8">
+                <Ellipse x="1.02" y="1.21" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now8"><![CDATA[[SECOND] == 8]]></Expression></Expressions>
+        <Compare expression="now8">
+          <PartDraw x="377" y="76" width="13" height="13">
+            <Ellipse x="1.29" y="1.48" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past8"><![CDATA[[SECOND] > 8]]></Expression></Expressions>
+            <Compare expression="past8">
+              <PartDraw x="379" y="78" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.79" y="1.98" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="379" y="78" width="8" height="8">
+                <Ellipse x="1.79" y="1.98" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now9"><![CDATA[[SECOND] == 9]]></Expression></Expressions>
+        <Compare expression="now9">
+          <PartDraw x="391" y="93" width="13" height="13">
+            <Ellipse x="1.32" y="1.8" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past9"><![CDATA[[SECOND] > 9]]></Expression></Expressions>
+            <Compare expression="past9">
+              <PartDraw x="393" y="96" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.82" y="1.3" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="393" y="96" width="8" height="8">
+                <Ellipse x="1.82" y="1.3" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now10"><![CDATA[[SECOND] == 10]]></Expression></Expressions>
+        <Compare expression="now10">
+          <PartDraw x="403" y="112" width="13" height="13">
+            <Ellipse x="1.46" y="1.5" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past10"><![CDATA[[SECOND] > 10]]></Expression></Expressions>
+            <Compare expression="past10">
+              <PartDraw x="404" y="113" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.71" y="1.75" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="404" y="113" width="11" height="11">
+                <Ellipse x="1.71" y="1.75" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now11"><![CDATA[[SECOND] == 11]]></Expression></Expressions>
+        <Compare expression="now11">
+          <PartDraw x="413" y="132" width="13" height="13">
+            <Ellipse x="1.59" y="1.37" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past11"><![CDATA[[SECOND] > 11]]></Expression></Expressions>
+            <Compare expression="past11">
+              <PartDraw x="416" y="134" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.09" y="1.87" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="416" y="134" width="8" height="8">
+                <Ellipse x="1.09" y="1.87" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now12"><![CDATA[[SECOND] == 12]]></Expression></Expressions>
+        <Compare expression="now12">
+          <PartDraw x="421" y="153" width="13" height="13">
+            <Ellipse x="1.58" y="1.18" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past12"><![CDATA[[SECOND] > 12]]></Expression></Expressions>
+            <Compare expression="past12">
+              <PartDraw x="424" y="155" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.08" y="1.68" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="424" y="155" width="8" height="8">
+                <Ellipse x="1.08" y="1.68" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now13"><![CDATA[[SECOND] == 13]]></Expression></Expressions>
+        <Compare expression="now13">
+          <PartDraw x="427" y="174" width="13" height="13">
+            <Ellipse x="1.35" y="1.71" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past13"><![CDATA[[SECOND] > 13]]></Expression></Expressions>
+            <Compare expression="past13">
+              <PartDraw x="429" y="177" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.85" y="1.21" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="429" y="177" width="8" height="8">
+                <Ellipse x="1.85" y="1.21" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now14"><![CDATA[[SECOND] == 14]]></Expression></Expressions>
+        <Compare expression="now14">
+          <PartDraw x="430" y="196" width="13" height="13">
+            <Ellipse x="1.83" y="1.74" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past14"><![CDATA[[SECOND] > 14]]></Expression></Expressions>
+            <Compare expression="past14">
+              <PartDraw x="433" y="199" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.33" y="1.24" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="433" y="199" width="8" height="8">
+                <Ellipse x="1.33" y="1.24" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now15"><![CDATA[[SECOND] == 15]]></Expression></Expressions>
+        <Compare expression="now15">
+          <PartDraw x="432" y="218" width="13" height="13">
+            <Ellipse x="1" y="2" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past15"><![CDATA[[SECOND] > 15]]></Expression></Expressions>
+            <Compare expression="past15">
+              <PartDraw x="433" y="220" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.25" y="1.25" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="433" y="220" width="11" height="11">
+                <Ellipse x="1.25" y="1.25" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now16"><![CDATA[[SECOND] == 16]]></Expression></Expressions>
+        <Compare expression="now16">
+          <PartDraw x="430" y="241" width="13" height="13">
+            <Ellipse x="1.83" y="1.26" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past16"><![CDATA[[SECOND] > 16]]></Expression></Expressions>
+            <Compare expression="past16">
+              <PartDraw x="433" y="243" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.33" y="1.76" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="433" y="243" width="8" height="8">
+                <Ellipse x="1.33" y="1.76" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now17"><![CDATA[[SECOND] == 17]]></Expression></Expressions>
+        <Compare expression="now17">
+          <PartDraw x="427" y="263" width="13" height="13">
+            <Ellipse x="1.35" y="1.29" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past17"><![CDATA[[SECOND] > 17]]></Expression></Expressions>
+            <Compare expression="past17">
+              <PartDraw x="429" y="265" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.85" y="1.79" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="429" y="265" width="8" height="8">
+                <Ellipse x="1.85" y="1.79" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now18"><![CDATA[[SECOND] == 18]]></Expression></Expressions>
+        <Compare expression="now18">
+          <PartDraw x="421" y="284" width="13" height="13">
+            <Ellipse x="1.58" y="1.82" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past18"><![CDATA[[SECOND] > 18]]></Expression></Expressions>
+            <Compare expression="past18">
+              <PartDraw x="424" y="287" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.08" y="1.32" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="424" y="287" width="8" height="8">
+                <Ellipse x="1.08" y="1.32" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now19"><![CDATA[[SECOND] == 19]]></Expression></Expressions>
+        <Compare expression="now19">
+          <PartDraw x="413" y="305" width="13" height="13">
+            <Ellipse x="1.59" y="1.63" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past19"><![CDATA[[SECOND] > 19]]></Expression></Expressions>
+            <Compare expression="past19">
+              <PartDraw x="416" y="308" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.09" y="1.13" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="416" y="308" width="8" height="8">
+                <Ellipse x="1.09" y="1.13" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now20"><![CDATA[[SECOND] == 20]]></Expression></Expressions>
+        <Compare expression="now20">
+          <PartDraw x="403" y="325" width="13" height="13">
+            <Ellipse x="1.46" y="1.5" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past20"><![CDATA[[SECOND] > 20]]></Expression></Expressions>
+            <Compare expression="past20">
+              <PartDraw x="404" y="326" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.71" y="1.75" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="404" y="326" width="11" height="11">
+                <Ellipse x="1.71" y="1.75" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now21"><![CDATA[[SECOND] == 21]]></Expression></Expressions>
+        <Compare expression="now21">
+          <PartDraw x="391" y="344" width="13" height="13">
+            <Ellipse x="1.32" y="1.2" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past21"><![CDATA[[SECOND] > 21]]></Expression></Expressions>
+            <Compare expression="past21">
+              <PartDraw x="393" y="346" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.82" y="1.7" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="393" y="346" width="8" height="8">
+                <Ellipse x="1.82" y="1.7" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now22"><![CDATA[[SECOND] == 22]]></Expression></Expressions>
+        <Compare expression="now22">
+          <PartDraw x="377" y="361" width="13" height="13">
+            <Ellipse x="1.29" y="1.52" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past22"><![CDATA[[SECOND] > 22]]></Expression></Expressions>
+            <Compare expression="past22">
+              <PartDraw x="379" y="364" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.79" y="1.02" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="379" y="364" width="8" height="8">
+                <Ellipse x="1.79" y="1.02" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now23"><![CDATA[[SECOND] == 23]]></Expression></Expressions>
+        <Compare expression="now23">
+          <PartDraw x="361" y="377" width="13" height="13">
+            <Ellipse x="1.52" y="1.29" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past23"><![CDATA[[SECOND] > 23]]></Expression></Expressions>
+            <Compare expression="past23">
+              <PartDraw x="364" y="379" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.02" y="1.79" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="364" y="379" width="8" height="8">
+                <Ellipse x="1.02" y="1.79" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now24"><![CDATA[[SECOND] == 24]]></Expression></Expressions>
+        <Compare expression="now24">
+          <PartDraw x="344" y="391" width="13" height="13">
+            <Ellipse x="1.2" y="1.32" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past24"><![CDATA[[SECOND] > 24]]></Expression></Expressions>
+            <Compare expression="past24">
+              <PartDraw x="346" y="393" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.7" y="1.82" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="346" y="393" width="8" height="8">
+                <Ellipse x="1.7" y="1.82" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now25"><![CDATA[[SECOND] == 25]]></Expression></Expressions>
+        <Compare expression="now25">
+          <PartDraw x="325" y="403" width="13" height="13">
+            <Ellipse x="1.5" y="1.46" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past25"><![CDATA[[SECOND] > 25]]></Expression></Expressions>
+            <Compare expression="past25">
+              <PartDraw x="326" y="404" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.75" y="1.71" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="326" y="404" width="11" height="11">
+                <Ellipse x="1.75" y="1.71" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now26"><![CDATA[[SECOND] == 26]]></Expression></Expressions>
+        <Compare expression="now26">
+          <PartDraw x="305" y="413" width="13" height="13">
+            <Ellipse x="1.63" y="1.59" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past26"><![CDATA[[SECOND] > 26]]></Expression></Expressions>
+            <Compare expression="past26">
+              <PartDraw x="308" y="416" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.13" y="1.09" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="308" y="416" width="8" height="8">
+                <Ellipse x="1.13" y="1.09" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now27"><![CDATA[[SECOND] == 27]]></Expression></Expressions>
+        <Compare expression="now27">
+          <PartDraw x="284" y="421" width="13" height="13">
+            <Ellipse x="1.82" y="1.58" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past27"><![CDATA[[SECOND] > 27]]></Expression></Expressions>
+            <Compare expression="past27">
+              <PartDraw x="287" y="424" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.32" y="1.08" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="287" y="424" width="8" height="8">
+                <Ellipse x="1.32" y="1.08" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now28"><![CDATA[[SECOND] == 28]]></Expression></Expressions>
+        <Compare expression="now28">
+          <PartDraw x="263" y="427" width="13" height="13">
+            <Ellipse x="1.29" y="1.35" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past28"><![CDATA[[SECOND] > 28]]></Expression></Expressions>
+            <Compare expression="past28">
+              <PartDraw x="265" y="429" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.79" y="1.85" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="265" y="429" width="8" height="8">
+                <Ellipse x="1.79" y="1.85" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now29"><![CDATA[[SECOND] == 29]]></Expression></Expressions>
+        <Compare expression="now29">
+          <PartDraw x="241" y="430" width="13" height="13">
+            <Ellipse x="1.26" y="1.83" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past29"><![CDATA[[SECOND] > 29]]></Expression></Expressions>
+            <Compare expression="past29">
+              <PartDraw x="243" y="433" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.76" y="1.33" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="243" y="433" width="8" height="8">
+                <Ellipse x="1.76" y="1.33" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now30"><![CDATA[[SECOND] == 30]]></Expression></Expressions>
+        <Compare expression="now30">
+          <PartDraw x="219" y="432" width="13" height="13">
+            <Ellipse x="1" y="1" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past30"><![CDATA[[SECOND] > 30]]></Expression></Expressions>
+            <Compare expression="past30">
+              <PartDraw x="220" y="433" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.25" y="1.25" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="220" y="433" width="11" height="11">
+                <Ellipse x="1.25" y="1.25" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now31"><![CDATA[[SECOND] == 31]]></Expression></Expressions>
+        <Compare expression="now31">
+          <PartDraw x="196" y="430" width="13" height="13">
+            <Ellipse x="1.74" y="1.83" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past31"><![CDATA[[SECOND] > 31]]></Expression></Expressions>
+            <Compare expression="past31">
+              <PartDraw x="199" y="433" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.24" y="1.33" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="199" y="433" width="8" height="8">
+                <Ellipse x="1.24" y="1.33" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now32"><![CDATA[[SECOND] == 32]]></Expression></Expressions>
+        <Compare expression="now32">
+          <PartDraw x="174" y="427" width="13" height="13">
+            <Ellipse x="1.71" y="1.35" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past32"><![CDATA[[SECOND] > 32]]></Expression></Expressions>
+            <Compare expression="past32">
+              <PartDraw x="177" y="429" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.21" y="1.85" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="177" y="429" width="8" height="8">
+                <Ellipse x="1.21" y="1.85" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now33"><![CDATA[[SECOND] == 33]]></Expression></Expressions>
+        <Compare expression="now33">
+          <PartDraw x="153" y="421" width="13" height="13">
+            <Ellipse x="1.18" y="1.58" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past33"><![CDATA[[SECOND] > 33]]></Expression></Expressions>
+            <Compare expression="past33">
+              <PartDraw x="155" y="424" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.68" y="1.08" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="155" y="424" width="8" height="8">
+                <Ellipse x="1.68" y="1.08" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now34"><![CDATA[[SECOND] == 34]]></Expression></Expressions>
+        <Compare expression="now34">
+          <PartDraw x="132" y="413" width="13" height="13">
+            <Ellipse x="1.37" y="1.59" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past34"><![CDATA[[SECOND] > 34]]></Expression></Expressions>
+            <Compare expression="past34">
+              <PartDraw x="134" y="416" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.87" y="1.09" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="134" y="416" width="8" height="8">
+                <Ellipse x="1.87" y="1.09" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now35"><![CDATA[[SECOND] == 35]]></Expression></Expressions>
+        <Compare expression="now35">
+          <PartDraw x="112" y="403" width="13" height="13">
+            <Ellipse x="1.5" y="1.46" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past35"><![CDATA[[SECOND] > 35]]></Expression></Expressions>
+            <Compare expression="past35">
+              <PartDraw x="113" y="404" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.75" y="1.71" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="113" y="404" width="11" height="11">
+                <Ellipse x="1.75" y="1.71" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now36"><![CDATA[[SECOND] == 36]]></Expression></Expressions>
+        <Compare expression="now36">
+          <PartDraw x="93" y="391" width="13" height="13">
+            <Ellipse x="1.8" y="1.32" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past36"><![CDATA[[SECOND] > 36]]></Expression></Expressions>
+            <Compare expression="past36">
+              <PartDraw x="96" y="393" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.3" y="1.82" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="96" y="393" width="8" height="8">
+                <Ellipse x="1.3" y="1.82" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now37"><![CDATA[[SECOND] == 37]]></Expression></Expressions>
+        <Compare expression="now37">
+          <PartDraw x="76" y="377" width="13" height="13">
+            <Ellipse x="1.48" y="1.29" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past37"><![CDATA[[SECOND] > 37]]></Expression></Expressions>
+            <Compare expression="past37">
+              <PartDraw x="78" y="379" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.98" y="1.79" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="78" y="379" width="8" height="8">
+                <Ellipse x="1.98" y="1.79" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now38"><![CDATA[[SECOND] == 38]]></Expression></Expressions>
+        <Compare expression="now38">
+          <PartDraw x="60" y="361" width="13" height="13">
+            <Ellipse x="1.71" y="1.52" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past38"><![CDATA[[SECOND] > 38]]></Expression></Expressions>
+            <Compare expression="past38">
+              <PartDraw x="63" y="364" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.21" y="1.02" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="63" y="364" width="8" height="8">
+                <Ellipse x="1.21" y="1.02" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now39"><![CDATA[[SECOND] == 39]]></Expression></Expressions>
+        <Compare expression="now39">
+          <PartDraw x="46" y="344" width="13" height="13">
+            <Ellipse x="1.68" y="1.2" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past39"><![CDATA[[SECOND] > 39]]></Expression></Expressions>
+            <Compare expression="past39">
+              <PartDraw x="49" y="346" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.18" y="1.7" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="49" y="346" width="8" height="8">
+                <Ellipse x="1.18" y="1.7" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now40"><![CDATA[[SECOND] == 40]]></Expression></Expressions>
+        <Compare expression="now40">
+          <PartDraw x="34" y="325" width="13" height="13">
+            <Ellipse x="1.54" y="1.5" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past40"><![CDATA[[SECOND] > 40]]></Expression></Expressions>
+            <Compare expression="past40">
+              <PartDraw x="35" y="326" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.79" y="1.75" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="35" y="326" width="11" height="11">
+                <Ellipse x="1.79" y="1.75" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now41"><![CDATA[[SECOND] == 41]]></Expression></Expressions>
+        <Compare expression="now41">
+          <PartDraw x="24" y="305" width="13" height="13">
+            <Ellipse x="1.41" y="1.63" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past41"><![CDATA[[SECOND] > 41]]></Expression></Expressions>
+            <Compare expression="past41">
+              <PartDraw x="26" y="308" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.91" y="1.13" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="26" y="308" width="8" height="8">
+                <Ellipse x="1.91" y="1.13" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now42"><![CDATA[[SECOND] == 42]]></Expression></Expressions>
+        <Compare expression="now42">
+          <PartDraw x="16" y="284" width="13" height="13">
+            <Ellipse x="1.42" y="1.82" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past42"><![CDATA[[SECOND] > 42]]></Expression></Expressions>
+            <Compare expression="past42">
+              <PartDraw x="18" y="287" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.92" y="1.32" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="18" y="287" width="8" height="8">
+                <Ellipse x="1.92" y="1.32" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now43"><![CDATA[[SECOND] == 43]]></Expression></Expressions>
+        <Compare expression="now43">
+          <PartDraw x="10" y="263" width="13" height="13">
+            <Ellipse x="1.65" y="1.29" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past43"><![CDATA[[SECOND] > 43]]></Expression></Expressions>
+            <Compare expression="past43">
+              <PartDraw x="13" y="265" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.15" y="1.79" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="13" y="265" width="8" height="8">
+                <Ellipse x="1.15" y="1.79" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now44"><![CDATA[[SECOND] == 44]]></Expression></Expressions>
+        <Compare expression="now44">
+          <PartDraw x="7" y="241" width="13" height="13">
+            <Ellipse x="1.17" y="1.26" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past44"><![CDATA[[SECOND] > 44]]></Expression></Expressions>
+            <Compare expression="past44">
+              <PartDraw x="9" y="243" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.67" y="1.76" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="9" y="243" width="8" height="8">
+                <Ellipse x="1.67" y="1.76" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now45"><![CDATA[[SECOND] == 45]]></Expression></Expressions>
+        <Compare expression="now45">
+          <PartDraw x="6" y="219" width="13" height="13">
+            <Ellipse x="1" y="1" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past45"><![CDATA[[SECOND] > 45]]></Expression></Expressions>
+            <Compare expression="past45">
+              <PartDraw x="7" y="220" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.25" y="1.25" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="7" y="220" width="11" height="11">
+                <Ellipse x="1.25" y="1.25" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now46"><![CDATA[[SECOND] == 46]]></Expression></Expressions>
+        <Compare expression="now46">
+          <PartDraw x="7" y="196" width="13" height="13">
+            <Ellipse x="1.17" y="1.74" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past46"><![CDATA[[SECOND] > 46]]></Expression></Expressions>
+            <Compare expression="past46">
+              <PartDraw x="9" y="199" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.67" y="1.24" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="9" y="199" width="8" height="8">
+                <Ellipse x="1.67" y="1.24" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now47"><![CDATA[[SECOND] == 47]]></Expression></Expressions>
+        <Compare expression="now47">
+          <PartDraw x="10" y="174" width="13" height="13">
+            <Ellipse x="1.65" y="1.71" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past47"><![CDATA[[SECOND] > 47]]></Expression></Expressions>
+            <Compare expression="past47">
+              <PartDraw x="13" y="177" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.15" y="1.21" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="13" y="177" width="8" height="8">
+                <Ellipse x="1.15" y="1.21" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now48"><![CDATA[[SECOND] == 48]]></Expression></Expressions>
+        <Compare expression="now48">
+          <PartDraw x="16" y="153" width="13" height="13">
+            <Ellipse x="1.42" y="1.18" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past48"><![CDATA[[SECOND] > 48]]></Expression></Expressions>
+            <Compare expression="past48">
+              <PartDraw x="18" y="155" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.92" y="1.68" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="18" y="155" width="8" height="8">
+                <Ellipse x="1.92" y="1.68" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now49"><![CDATA[[SECOND] == 49]]></Expression></Expressions>
+        <Compare expression="now49">
+          <PartDraw x="24" y="132" width="13" height="13">
+            <Ellipse x="1.41" y="1.37" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past49"><![CDATA[[SECOND] > 49]]></Expression></Expressions>
+            <Compare expression="past49">
+              <PartDraw x="26" y="134" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.91" y="1.87" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="26" y="134" width="8" height="8">
+                <Ellipse x="1.91" y="1.87" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now50"><![CDATA[[SECOND] == 50]]></Expression></Expressions>
+        <Compare expression="now50">
+          <PartDraw x="34" y="112" width="13" height="13">
+            <Ellipse x="1.54" y="1.5" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past50"><![CDATA[[SECOND] > 50]]></Expression></Expressions>
+            <Compare expression="past50">
+              <PartDraw x="35" y="113" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.79" y="1.75" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="35" y="113" width="11" height="11">
+                <Ellipse x="1.79" y="1.75" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now51"><![CDATA[[SECOND] == 51]]></Expression></Expressions>
+        <Compare expression="now51">
+          <PartDraw x="46" y="93" width="13" height="13">
+            <Ellipse x="1.68" y="1.8" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past51"><![CDATA[[SECOND] > 51]]></Expression></Expressions>
+            <Compare expression="past51">
+              <PartDraw x="49" y="96" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.18" y="1.3" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="49" y="96" width="8" height="8">
+                <Ellipse x="1.18" y="1.3" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now52"><![CDATA[[SECOND] == 52]]></Expression></Expressions>
+        <Compare expression="now52">
+          <PartDraw x="60" y="76" width="13" height="13">
+            <Ellipse x="1.71" y="1.48" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past52"><![CDATA[[SECOND] > 52]]></Expression></Expressions>
+            <Compare expression="past52">
+              <PartDraw x="63" y="78" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.21" y="1.98" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="63" y="78" width="8" height="8">
+                <Ellipse x="1.21" y="1.98" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now53"><![CDATA[[SECOND] == 53]]></Expression></Expressions>
+        <Compare expression="now53">
+          <PartDraw x="76" y="60" width="13" height="13">
+            <Ellipse x="1.48" y="1.71" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past53"><![CDATA[[SECOND] > 53]]></Expression></Expressions>
+            <Compare expression="past53">
+              <PartDraw x="78" y="63" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.98" y="1.21" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="78" y="63" width="8" height="8">
+                <Ellipse x="1.98" y="1.21" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now54"><![CDATA[[SECOND] == 54]]></Expression></Expressions>
+        <Compare expression="now54">
+          <PartDraw x="93" y="46" width="13" height="13">
+            <Ellipse x="1.8" y="1.68" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past54"><![CDATA[[SECOND] > 54]]></Expression></Expressions>
+            <Compare expression="past54">
+              <PartDraw x="96" y="49" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.3" y="1.18" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="96" y="49" width="8" height="8">
+                <Ellipse x="1.3" y="1.18" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now55"><![CDATA[[SECOND] == 55]]></Expression></Expressions>
+        <Compare expression="now55">
+          <PartDraw x="112" y="34" width="13" height="13">
+            <Ellipse x="1.5" y="1.54" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past55"><![CDATA[[SECOND] > 55]]></Expression></Expressions>
+            <Compare expression="past55">
+              <PartDraw x="113" y="35" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.75" y="1.79" width="7.5" height="7.5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="113" y="35" width="11" height="11">
+                <Ellipse x="1.75" y="1.79" width="7.5" height="7.5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now56"><![CDATA[[SECOND] == 56]]></Expression></Expressions>
+        <Compare expression="now56">
+          <PartDraw x="132" y="24" width="13" height="13">
+            <Ellipse x="1.37" y="1.41" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past56"><![CDATA[[SECOND] > 56]]></Expression></Expressions>
+            <Compare expression="past56">
+              <PartDraw x="134" y="26" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.87" y="1.91" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="134" y="26" width="8" height="8">
+                <Ellipse x="1.87" y="1.91" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now57"><![CDATA[[SECOND] == 57]]></Expression></Expressions>
+        <Compare expression="now57">
+          <PartDraw x="153" y="16" width="13" height="13">
+            <Ellipse x="1.18" y="1.42" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past57"><![CDATA[[SECOND] > 57]]></Expression></Expressions>
+            <Compare expression="past57">
+              <PartDraw x="155" y="18" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.68" y="1.92" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="155" y="18" width="8" height="8">
+                <Ellipse x="1.68" y="1.92" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now58"><![CDATA[[SECOND] == 58]]></Expression></Expressions>
+        <Compare expression="now58">
+          <PartDraw x="174" y="10" width="13" height="13">
+            <Ellipse x="1.71" y="1.65" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past58"><![CDATA[[SECOND] > 58]]></Expression></Expressions>
+            <Compare expression="past58">
+              <PartDraw x="177" y="13" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.21" y="1.15" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="177" y="13" width="8" height="8">
+                <Ellipse x="1.21" y="1.15" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+      <Condition>
+        <Expressions><Expression name="now59"><![CDATA[[SECOND] == 59]]></Expression></Expressions>
+        <Compare expression="now59">
+          <PartDraw x="196" y="7" width="13" height="13">
+            <Ellipse x="1.74" y="1.17" width="10" height="10"><Fill color="#ffffffff"/></Ellipse>
+          </PartDraw>
+        </Compare>
+        <Default>
+          <Condition>
+            <Expressions><Expression name="past59"><![CDATA[[SECOND] > 59]]></Expression></Expressions>
+            <Compare expression="past59">
+              <PartDraw x="199" y="9" width="8" height="8" tintColor="[CONFIGURATION.accent]">
+                <Ellipse x="1.24" y="1.67" width="5" height="5"><Fill color="#ffffffff"/></Ellipse>
+              </PartDraw>
+            </Compare>
+            <Default>
+              <PartDraw x="199" y="9" width="8" height="8">
+                <Ellipse x="1.24" y="1.67" width="5" height="5"><Fill color="#ff242424"/></Ellipse>
+              </PartDraw>
+            </Default>
+          </Condition>
+        </Default>
+      </Condition>
+    </Group>
+    <Group name="time" x="0" y="0" width="450" height="450" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
+      <Condition>
+        <Expressions><Expression name="h24_0"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
+        <Compare expression="h24_0">
+          <PartText x="37" y="158" width="180" height="150" alpha="255">
+            <Text align="START">
+              <Font family="dotclock" size="150" color="#ffffffff"><Template>%s<Parameter expression="[HOUR_0_23_Z]"/></Template></Font>
             </Text>
           </PartText>
         </Compare>
         <Default>
-          <PartText x="266" y="274" width="86" height="26" alpha="255">
-            <Text align="CENTER">
-              <Font family="doto_black" size="22" color="#ffffffff">--</Font>
+          <PartText x="37" y="158" width="180" height="150" alpha="255">
+            <Text align="START">
+              <Font family="dotclock" size="150" color="#ffffffff"><Template>%s<Parameter expression="[HOUR_1_12_Z]"/></Template></Font>
             </Text>
           </PartText>
         </Default>
       </Condition>
-      <PartText x="266" y="305" width="86" height="16" alpha="255">
-        <Text align="CENTER">
-          <Font family="doto_bold" size="13" color="#ff8c8c8c">BPM</Font>
+      <PartDraw x="217" y="202" width="16" height="16">
+        <Ellipse x="1.7" y="1.7" width="12.6" height="12.6"><Fill color="#ff8c8c8c"/></Ellipse>
+      </PartDraw>
+      <PartDraw x="217" y="232" width="16" height="16">
+        <Ellipse x="1.7" y="1.7" width="12.6" height="12.6"><Fill color="#ff8c8c8c"/></Ellipse>
+      </PartDraw>
+      <PartText x="247" y="158" width="180" height="150" alpha="255" tintColor="[CONFIGURATION.accent]">
+        <Text align="START">
+          <Font family="dotclock" size="150" color="#ffffffff"><Template>%s<Parameter expression="[MINUTE_Z]"/></Template></Font>
+        </Text>
+      </PartText>
+    </Group>
+    <Group name="time_ambient" x="0" y="0" width="450" height="450" alpha="0">
+      <Variant mode="AMBIENT" target="alpha" value="255"/>
+      <Condition>
+        <Expressions><Expression name="h24_1"><![CDATA[[IS_24_HOUR_MODE]]]></Expression></Expressions>
+        <Compare expression="h24_1">
+          <PartText x="37" y="158" width="180" height="150" alpha="255">
+            <Text align="START">
+              <Font family="dotclock_thin" size="150" color="#ffb4b4b4"><Template>%s<Parameter expression="[HOUR_0_23_Z]"/></Template></Font>
+            </Text>
+          </PartText>
+        </Compare>
+        <Default>
+          <PartText x="37" y="158" width="180" height="150" alpha="255">
+            <Text align="START">
+              <Font family="dotclock_thin" size="150" color="#ffb4b4b4"><Template>%s<Parameter expression="[HOUR_1_12_Z]"/></Template></Font>
+            </Text>
+          </PartText>
+        </Default>
+      </Condition>
+      <PartDraw x="220" y="205" width="11" height="11">
+        <Ellipse x="1" y="1" width="8" height="8"><Fill color="#ff5a5a5a"/></Ellipse>
+      </PartDraw>
+      <PartDraw x="220" y="235" width="11" height="11">
+        <Ellipse x="1" y="1" width="8" height="8"><Fill color="#ff5a5a5a"/></Ellipse>
+      </PartDraw>
+      <PartText x="247" y="158" width="180" height="150" alpha="255">
+        <Text align="START">
+          <Font family="dotclock_thin" size="150" color="#ff8a8a8a"><Template>%s<Parameter expression="[MINUTE_Z]"/></Template></Font>
+        </Text>
+      </PartText>
+    </Group>
+    <Group name="date" x="0" y="0" width="450" height="450" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="150"/>
+      <PartText x="138" y="105" width="70" height="37" alpha="255" tintColor="[CONFIGURATION.accent]">
+        <Text align="START">
+          <Font family="doto_black" size="29" color="#ffffffff"><Upper><Template>%s<Parameter expression="[DAY_OF_WEEK_S]"/></Template></Upper></Font>
+        </Text>
+      </PartText>
+      <PartText x="208" y="105" width="122" height="37" alpha="255">
+        <Text align="START">
+          <Font family="doto_black" size="29" color="#ffffffff"><Upper><Template>%s %s<Parameter expression="[DAY_Z]"/><Parameter expression="[MONTH_S]"/></Template></Upper></Font>
         </Text>
       </PartText>
     </Group>
     <Group name="battery" x="0" y="0" width="450" height="450" alpha="255">
-      <Variant mode="AMBIENT" target="alpha" value="110"/>
+      <Variant mode="AMBIENT" target="alpha" value="120"/>
+      <PartText x="175" y="70" width="100" height="27" alpha="255">
+        <Text align="CENTER">
+          <Font family="doto_black" size="21" color="#ffc4c4c4"><Template>%d%%<Parameter expression="[BATTERY_PERCENT]"/></Template></Font>
+        </Text>
+      </PartText>
+    </Group>
+    <Group name="details" x="0" y="0" width="450" height="450" alpha="255">
+      <Variant mode="AMBIENT" target="alpha" value="0"/>
       <Condition>
         <Expressions><Expression name="bat0"><![CDATA[[BATTERY_PERCENT] >= 5]]></Expression></Expressions>
         <Compare expression="bat0">
-          <PartDraw x="167" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="161" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="167" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="161" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat1"><![CDATA[[BATTERY_PERCENT] >= 15]]></Expression></Expressions>
         <Compare expression="bat1">
-          <PartDraw x="179" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="174" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="179" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="174" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat2"><![CDATA[[BATTERY_PERCENT] >= 25]]></Expression></Expressions>
         <Compare expression="bat2">
-          <PartDraw x="191" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="187" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="191" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="187" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat3"><![CDATA[[BATTERY_PERCENT] >= 35]]></Expression></Expressions>
         <Compare expression="bat3">
-          <PartDraw x="203" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="200" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="203" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="200" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat4"><![CDATA[[BATTERY_PERCENT] >= 45]]></Expression></Expressions>
         <Compare expression="bat4">
-          <PartDraw x="215" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="213" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="215" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="213" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat5"><![CDATA[[BATTERY_PERCENT] >= 55]]></Expression></Expressions>
         <Compare expression="bat5">
-          <PartDraw x="227" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="226" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="227" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="226" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat6"><![CDATA[[BATTERY_PERCENT] >= 65]]></Expression></Expressions>
         <Compare expression="bat6">
-          <PartDraw x="239" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="239" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="239" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="239" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat7"><![CDATA[[BATTERY_PERCENT] >= 75]]></Expression></Expressions>
         <Compare expression="bat7">
-          <PartDraw x="251" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="252" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="251" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="252" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat8"><![CDATA[[BATTERY_PERCENT] >= 85]]></Expression></Expressions>
         <Compare expression="bat8">
-          <PartDraw x="263" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="265" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="263" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="265" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
         </Default>
       </Condition>
       <Condition>
         <Expressions><Expression name="bat9"><![CDATA[[BATTERY_PERCENT] >= 95]]></Expression></Expressions>
         <Compare expression="bat9">
-          <PartDraw x="275" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ffffffff"/></Rectangle>
+          <PartDraw x="278" y="53" width="11" height="11" tintColor="[CONFIGURATION.accent]">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ffffffff"/></Ellipse>
           </PartDraw>
         </Compare>
         <Default>
-          <PartDraw x="275" y="340" width="9" height="9">
-            <Rectangle x="0" y="0.4" width="8" height="8"><Fill color="#ff2a2a2a"/></Rectangle>
+          <PartDraw x="278" y="53" width="11" height="11">
+            <Ellipse x="1.5" y="1" width="8" height="8"><Fill color="#ff262626"/></Ellipse>
           </PartDraw>
+        </Default>
+      </Condition>
+      <PartImage x="111" y="302" width="32" height="32" tintColor="[CONFIGURATION.accent]">
+        <Image resource="icon_steps"/>
+      </PartImage>
+      <PartText x="87" y="376" width="80" height="22" alpha="255">
+        <Text align="CENTER">
+          <Font family="doto_black" size="17" color="#ff8c8c8c">STEPS</Font>
+        </Text>
+      </PartText>
+      <PartImage x="209" y="302" width="32" height="32" tintColor="[CONFIGURATION.accent]">
+        <Image resource="icon_flame"/>
+      </PartImage>
+      <PartText x="185" y="376" width="80" height="22" alpha="255">
+        <Text align="CENTER">
+          <Font family="doto_black" size="17" color="#ff8c8c8c">KCAL</Font>
+        </Text>
+      </PartText>
+      <PartImage x="307" y="302" width="32" height="32" tintColor="[CONFIGURATION.accent]">
+        <Image resource="icon_heart"/>
+      </PartImage>
+      <PartText x="283" y="376" width="80" height="22" alpha="255">
+        <Text align="CENTER">
+          <Font family="doto_black" size="17" color="#ff8c8c8c">BPM</Font>
+        </Text>
+      </PartText>
+      <PartText x="80" y="340" width="96" height="30" alpha="255">
+        <Text align="CENTER">
+          <Font family="dotclock" size="30" color="#ffffffff"><Template>%d<Parameter expression="[STEP_COUNT]"/></Template></Font>
+        </Text>
+      </PartText>
+      <PartText x="178" y="340" width="96" height="30" alpha="255">
+        <Text align="CENTER">
+          <Font family="dotclock" size="30" color="#ffffffff"><Template>%d<Parameter expression="floor([STEP_COUNT] * 0.04)"/></Template></Font>
+        </Text>
+      </PartText>
+      <Condition>
+        <Expressions><Expression name="has_hr"><![CDATA[[HEART_RATE] > 0]]></Expression></Expressions>
+        <Compare expression="has_hr">
+          <PartText x="276" y="340" width="96" height="30" alpha="255">
+            <Text align="CENTER">
+              <Font family="dotclock" size="30" color="#ffffffff"><Template>%d<Parameter expression="round([HEART_RATE])"/></Template></Font>
+            </Text>
+          </PartText>
+        </Compare>
+        <Default>
+          <PartText x="276" y="340" width="96" height="30" alpha="255">
+            <Text align="CENTER">
+              <Font family="dotclock" size="30" color="#ffffffff">--</Font>
+            </Text>
+          </PartText>
         </Default>
       </Condition>
     </Group>

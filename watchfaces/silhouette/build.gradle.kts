@@ -8,7 +8,7 @@ plugins {
 }
 
 // The "accents" of this face are its pictures.
-val accents = listOf("woman", "man")
+val accents = listOf("woman", "man", "tender", "close", "love")
 
 android {
     namespace = "com.nightwise.watchwise.watchfacepush.silhouette"

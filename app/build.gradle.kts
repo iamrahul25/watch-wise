@@ -18,8 +18,8 @@ android {
         targetSdk = 37
         // Same applicationId and signing key as the phone app (:mobile), published on one Play
         // listing. Each build needs its own version code: watch = 2xxxxxx, phone = 1xxxxxx.
-        versionCode = 2_000_002
-        versionName = "1.0.0"
+        versionCode = 2000003
+        versionName = "1.0.1"
     }
 
     buildTypes {
@@ -123,7 +123,12 @@ val watchFaceModules = mapOf(
     "stack" to listOf("violet", "cyan", "orange", "lime"),
     "terminal" to listOf("orange", "cyan", "lime", "violet"),
     "commitgrid" to listOf("green", "blue", "purple", "orange"),
-    "silhouette" to listOf("woman", "man"),
+    "silhouette" to listOf("woman", "man", "tender", "close", "love"),
+    "java" to listOf("orange", "pink", "cyan", "lime"),
+    "sql" to listOf("cyan", "violet", "orange", "pink"),
+    "spaceterminal" to listOf("violet", "cyan", "amber", "mint"),
+    "orbit" to listOf("orange", "blue", "lime", "white"),
+    "retropixel" to listOf("violet", "blue", "sunset", "teal"),
 )
 
 val bundleWatchFaces = tasks.register<BundleWatchFacesTask>("bundleWatchFaces") {

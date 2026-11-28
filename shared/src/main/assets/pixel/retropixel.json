@@ -1,0 +1,26 @@
+{
+ "violet": {
+  "time": "#f5e0f9",
+  "seconds": "#ebd3ed",
+  "date": "#d3d0d5",
+  "text": "#eaeceb"
+ },
+ "blue": {
+  "time": "#f5e0f9",
+  "seconds": "#ebd3ed",
+  "date": "#d3d0d5",
+  "text": "#eaeceb"
+ },
+ "sunset": {
+  "time": "#f5e0f9",
+  "seconds": "#ebd3ed",
+  "date": "#d3d0d5",
+  "text": "#eaeceb"
+ },
+ "teal": {
+  "time": "#f5e0f9",
+  "seconds": "#ebd3ed",
+  "date": "#d3d0d5",
+  "text": "#eaeceb"
+ }
+}

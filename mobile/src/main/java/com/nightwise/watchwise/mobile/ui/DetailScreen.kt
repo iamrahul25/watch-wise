@@ -75,9 +75,14 @@ private val WatchFace.about: String
         WatchFace.SHELL_WINDOW -> "Your day as a terminal window: date, status and what's next."
         WatchFace.SHELL_FULL -> "The terminal, edge to edge, with text as large as it gets."
         WatchFace.STACK -> "Tall hours over bright minutes, with date and stats at a glance."
-        WatchFace.TERMINAL -> "Solid and outlined digits beside a tidy column of readings."
+        WatchFace.OUTLINE -> "Solid and outlined digits beside a tidy column of readings."
         WatchFace.COMMIT_GRID -> "A developer dashboard: your step goal fills a contribution-style grid."
         WatchFace.SILHOUETTE -> "A shadow behind frosted glass, with the day, time and battery beside it."
+        WatchFace.JAVA -> "Your watch as a Java class, in bold IDE colours."
+        WatchFace.SQL -> "A query for the time, answered as a bold result table."
+        WatchFace.ORBIT -> "Rings of hours, minutes and seconds turning around the date."
+        WatchFace.SPACE_TERMINAL -> "A pixel astronaut on a moon, beside a terminal column of readings."
+        WatchFace.RETRO_PIXEL -> "A pixel night over the city, watched from a rooftop with a cat."
     }
 
 private val WatchFace.readings: List<String>
@@ -88,9 +93,14 @@ private val WatchFace.readings: List<String>
         WatchFace.SHELL_WINDOW, WatchFace.SHELL_FULL ->
             listOf("Next event", "Steps", "Heart rate", "Weather", "Battery")
         WatchFace.STACK -> listOf("Sunrise", "Next event", "Steps", "Heart rate", "Weather")
-        WatchFace.TERMINAL -> listOf("Sunrise", "Next event", "Heart rate", "Weather", "Battery")
+        WatchFace.OUTLINE -> listOf("Sunrise", "Next event", "Heart rate", "Weather", "Battery")
         WatchFace.COMMIT_GRID -> listOf("Step goal grid", "Steps", "Heart rate", "Weather", "Battery")
         WatchFace.SILHOUETTE -> listOf("Day and date", "Battery")
+        WatchFace.JAVA -> listOf("Day", "Steps", "Heart rate", "Battery")
+        WatchFace.SQL -> listOf("Day", "Steps", "Heart rate")
+        WatchFace.ORBIT -> listOf("Day", "Date", "Month", "Seconds")
+        WatchFace.SPACE_TERMINAL -> listOf("Date", "Weather", "Battery", "Heart rate", "Steps")
+        WatchFace.RETRO_PIXEL -> listOf("Date", "Seconds", "Battery", "Heart rate", "Steps")
     }
 
 /** Readable text on top of an accent colour. */
@@ -112,8 +122,8 @@ fun DetailScreen(
     onBack: () -> Unit,
     onShown: (WatchFace) -> Unit,
 ) {
-    val faces = WatchFace.entries
-    val pager = rememberPagerState(initialPage = start.ordinal) { faces.size }
+    val faces = WatchFace.browseOrder
+    val pager = rememberPagerState(initialPage = faces.indexOf(start)) { faces.size }
     LaunchedEffect(pager.currentPage) { onShown(faces[pager.currentPage]) }
     val face = faces[pager.currentPage]
     val accent = model.accent(face)
@@ -147,7 +157,13 @@ fun DetailScreen(
                 }
             }
             PageDots(faces.size, pager.currentPage, tint)
-            Text(face.title, style = MaterialTheme.typography.displaySmall, modifier = Modifier.padding(top = 14.dp))
+            Text(
+                face.category.title.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = TextMuted,
+                modifier = Modifier.padding(top = 14.dp),
+            )
+            Text(face.title, style = MaterialTheme.typography.displaySmall)
             Text(
                 face.about,
                 style = MaterialTheme.typography.bodyLarge,
